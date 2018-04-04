@@ -24,3 +24,4 @@ target_link_libraries(sync-drive
 		mosquitto
 )
 
+install(TARGETS sync-drive RUNTIME DESTINATION bin)
