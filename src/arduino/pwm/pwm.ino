@@ -1,35 +1,40 @@
-#define PWMPIN 3
+#define PWMPIN 11
 
-void setup() {
-  // put your setup code here, to run once:
-  //analogWrite(PWMPin, 0xA0);
-  //set the PWM pin to output
-  pinMode(PWMPIN, OUTPUT);
-  TIMSK2 = (1<<OCIE2A)| (0<<TOIE2);
-  OCR2A = 0x50;
+
+void setupTIMER2(){
+  //enable the compare interrupt
+  TIMSK2 = (1<<OCIE2A);
+  //set the compare register to the stop value
+  OCR2A = 0x30;
   TCNT2=0x00;
+  //set up the TIMER2 FastPWM Mode (WGM22-WGM20) and the clear ~OC2A on compare match, set OC2A at BOTTOM (COM2A1-COM2A0)
   TCCR2A = (1<<COM2A1) | (0<<COM2A0) | (1<<WGM21) | (1<<WGM20);
-  TCCR2B = (0<<WGM22) | (1<<CS22) | (0<<CS21) | (0<<CS20);
+  //set the prescaler of TIMER2 to 256
+  TCCR2B = (0<<WGM22) | (1<<CS22) | (1<<CS21) | (0<<CS20);
 }
 
-uint8_t changed=0;
-uint8_t compval=0;
+uint8_t compval=0x30;
+void setSpeed(unsigned char newSpeed){
+  //0x10 full reverse
+  //0x30 stop
+  //0x90 full forward  
+  compval=newSpeed;
+  //enable the compare interrupt 
+  TIMSK2=(1<<OCIE2A);  
+}
+
+void setup() {
+  pinMode(PWMPIN, OUTPUT);
+  setupTIMER2();
+}
 
 void loop() {
-  compval
-  //0x10 full reverser
-  //0x30 stop
-  //0x90 full forward
-  
-  // put your main code here, to run repeatedly:
-  /*delay(5000);
-  compval=0x80;
-  changed=1;*/
+
 }
 
 ISR(TIMER2_COMPA_vect){
-  if(changed){
-    OCR2A=compval;
-    changed=0;
-  }
+  //set the compare register to the new value
+  OCR2A=compval;
+  //disable the compare interrupt
+  TIMSK2&=~(1<<OCIE2A);
 }
