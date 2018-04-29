@@ -4,7 +4,7 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/ArduinoToolchain.cmake)
 project(sp-driver C CXX ASM)
 
 # Options
-set(SP_PORT "/dev/ttyUSB0" CACHE PATH "The path to serial port")
+set(SP_PORT "/dev/ttyACM0" CACHE PATH "The path to serial port")
 
 # Sources
 set(${PROJECT_NAME}_SRCS  main.cpp)
@@ -15,4 +15,10 @@ set(${PROJECT_NAME}_PORT  ${SP_PORT})
 
 generate_arduino_firmware(${PROJECT_NAME})
 
-install(FILES ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex arduino/)
+# Includes for IDE
+include_directories(
+	${ARDUINO_PLATFORM_PATH}/cores/arduino
+	${ARDUINO_PLATFORM_PATH}/variants/standard/
+)
+
+install(FILES ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex DESTINATION arduino/)
