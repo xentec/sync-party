@@ -1,0 +1,4 @@
+[submodule "arduino-cmake"]
+	path = extern/arduino-cmake
+	url = https://github.com/arduino-cmake/arduino-cmake
+	branch = develop
