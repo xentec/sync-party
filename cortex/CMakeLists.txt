@@ -17,13 +17,17 @@ target_compile_options(${PROJECT_NAME} PUBLIC "-Wall")       # include all warni
 
 # Libraries
 find_package(Threads REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
+
+add_subdirectory(extern/fmtlib EXCLUDE_FROM_ALL)
 
 target_link_libraries(${PROJECT_NAME}
 	PUBLIC
 	# static
 	# dynamic
-		${CMAKE_THREAD_LIBS_INIT}
-		mosquitto
+	    ${CMAKE_THREAD_LIBS_INIT}
+		${Boost_LIBRARIES}
+		fmt
 )
 
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)

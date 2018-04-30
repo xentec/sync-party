@@ -2,3 +2,7 @@
 	path = extern/arduino-cmake
 	url = https://github.com/arduino-cmake/arduino-cmake
 	branch = develop
+[submodule "fmtlib"]
+	path = extern/fmtlib
+	url = https://github.com/fmtlib/fmt
+	branch = 4.1.0
