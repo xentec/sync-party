@@ -1,5 +1,6 @@
 #include <Arduino.h>
 
+#define MOTOR_PIN 11
 #define WD_TIMEOUT_MS 200
 #define PING_PIN 7
 #define PING_TIMEOUT_MIS 2000
@@ -34,10 +35,12 @@ namespace motor
 	STOP         = 0x30,
 	FORWARD_FULL = 0x90,
   };
+
   byte ctrl = Control::STOP;
+
   void init()
   {
-
+	pinMode(MOTOR_PIN, OUTPUT);
 	pinMode(LED_BUILTIN, OUTPUT);
 
 	// setup TIMER2
@@ -173,7 +176,6 @@ void handle()
 	  wd.reset();
 	  return;
 	case Type::MOTOR:
-	  // TODO: control motor
 	  motor::set_speed(data);
 	  break;
 	case Type::GAP:
