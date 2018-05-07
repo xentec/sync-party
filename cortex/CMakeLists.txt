@@ -3,7 +3,14 @@ cmake_minimum_required(VERSION 3.2)
 project(sp-cortex CXX)
 
 # include sources
-set(SOURCES main.cpp)
+set(SOURCES
+	asio.hpp
+	controller.hpp
+	controller.cpp
+	driver.hpp
+	driver.cpp
+	main.cpp
+)
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
