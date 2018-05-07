@@ -36,6 +36,8 @@ struct Controller
 		recv_start();
 	}
 
+	std::function<void(u32 time, u8 num, i16 val)> on_axis;
+
 private:
 	void recv_start()
 	{
@@ -50,26 +52,24 @@ private:
 			return;
 		}
 
+		constexpr usz pkt_size = sizeof(js_event);
+
 		buf.commit(len);
-		auto &ev = *buffer_cast<const js_event*>(buf.data());
-
-		//fmt::print("time: {}, type: {}, number: {}, value: {}\n", ev.time, ev.type, ev.number, ev.value);
-
-		if(on_axis && (ev.type & JS_EVENT_AXIS))
+		while(buf.size() >= pkt_size)
 		{
-			on_axis(ev.time, ev.number, ev.value);
+			auto &ev = *static_cast<const js_event*>(buf.data().data());
+			if(on_axis && (ev.type & JS_EVENT_AXIS))
+			{
+				on_axis(ev.time, ev.number, ev.value);
+			}
+
+			buf.consume(pkt_size);
 		}
-
-
-		buf.consume(len);
 		recv_start();
 	}
 
 	posix::stream_descriptor sd;
 	streambuf buf;
-
-public:
-	std::function<void(u32 time, u8 num, i16 val)> on_axis;
 };
 
 struct Driver
