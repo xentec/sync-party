@@ -11,11 +11,10 @@ namespace fs = std::experimental::filesystem;
 enum {
 	PERIOD = 20000000,
 
-	DC_SERVO_MIN =  570000,
-	DC_SERVO_MAX = 1900000,
-
-	DC_PHY_MIN =  975000,
-	DC_PHY_MAX = 1460000,
+	DC_SERVO_MIN = 1200000,
+	DC_SERVO_MAX = 1800000,
+	DC_PHY_MIN =    500000,
+	DC_PHY_MAX =   2500000,
 };
 
 static const fs::path path_ctl = "/sys/class/pwm/pwmchip0/";
