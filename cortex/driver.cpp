@@ -62,11 +62,11 @@ void Driver::recv_handle(boost::system::error_code ec, usz len)
 			pkt_begin++;
 			parse_state = DATA;
 		case DATA:
-			if(buf_r.size() < pkt_size)
+			if(buf_r.size() < pkt_size-1)
 			{
 				stop = true; break;
 			}
-			if(auto tail = std::next(pkt_begin, pkt_size); *tail == SYNC_BYTE::END)
+			if(auto tail = std::next(pkt_begin, pkt_size-2); *tail == SYNC_BYTE::END)
 			{
 				pkt_end = std::next(tail);
 				switch(u8(*pkt_begin))
