@@ -8,16 +8,17 @@
 
 struct Controller
 {
-	enum Input
+	enum Axis
 	{
 		LS_H = 0,
 		LS_V = 1,
+		LT2 = 2,
 		RT2 = 5,
 	};
 
 	Controller(io_context& ctx, const char* dev_path);
 
-	std::function<void(u32 time, u8 num, i16 val)> on_axis;
+	std::function<void(u32 time, Axis num, i16 val)> on_axis;
 
 private:
 	void recv_start();
