@@ -35,7 +35,7 @@ void Controller::recv_handle(boost::system::error_code ec, usz len)
 		auto &ev = *static_cast<const js_event*>(buf.data().data());
 		if(on_axis && (ev.type & JS_EVENT_AXIS))
 		{
-			on_axis(ev.time, ev.number, ev.value);
+			on_axis(ev.time, Axis(ev.number), ev.value);
 		}
 
 		buf.consume(pkt_size);

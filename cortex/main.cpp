@@ -7,7 +7,7 @@
 
 #include <fmt/format.h>
 
-template<class I, class O>
+template<class O, class I>
 O map(I x, I in_min, I in_max, O out_min, O out_max)
 {
 	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -24,18 +24,29 @@ int main()
 	Controller ctrl(ioctx, "/dev/input/js0");
 	Driver driver(ioctx, "/dev/ttyACM0");
 
-	ctrl.on_axis = [&](u32 time, u8 num, i16 val)
+	ctrl.on_axis = [&](u32 time, Controller::Axis num, i16 val)
 	{
-		switch(num)
+		static u8 motor_speed_prev = Driver::Speed::STOP;
+		static std::unordered_map<Controller::Axis, i16> input {
+			{ Controller::LT2, 0 },
+			{ Controller::RT2, 0 },
+		};
+
+		input[num] = val;
+
+		i32 motor_input = input[Controller::RT2] - input[Controller::LT2];
+
+		u8 speed = Driver::Speed::STOP;
+		if(motor_input < 0)
+			speed = map<u8>(motor_input, 0, -i32(lim<u16>::max()), Driver::Speed::STOP, Driver::Speed::BACK_FULL);
+		else
+			speed = map<u8>(motor_input, 0,  i32(lim<u16>::max()), Driver::Speed::STOP, Driver::Speed::FORWARD_FULL);
+
+		if(speed != motor_speed_prev)
 		{
-		case Controller::RT2:
-		{
-			u8 d = map(u16(lim<i16>::max() + val), u16(0), lim<u16>::max(), u8(0x30), u8(0x90));
-			fmt::print("{:010} MOTOR: {:02x}\n", time, d);
-			driver.drive(d);
-		}
-		default:
-			return;
+			motor_speed_prev = speed;
+			fmt::print("{:10} MOTOR: {:5} => {:02x}\n", time, motor_input, speed);
+			driver.drive(speed);
 		}
 	};
 
