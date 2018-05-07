@@ -1,21 +1,12 @@
 
 #include "asio.hpp"
 #include "types.hpp"
+#include "util.hpp"
 
 #include "controller.hpp"
 #include "driver.hpp"
 
 #include <fmt/format.h>
-
-template<class O, class I>
-O map(I x, I in_min, I in_max, O out_min, O out_max)
-{
-	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
-
-
-template<class T>
-using lim = std::numeric_limits<T>;
 
 int main()
 {
@@ -26,27 +17,42 @@ int main()
 
 	ctrl.on_axis = [&](u32 time, Controller::Axis num, i16 val)
 	{
-		static u8 motor_speed_prev = Driver::Speed::STOP;
-		static std::unordered_map<Controller::Axis, i16> input {
-			{ Controller::LT2, 0 },
-			{ Controller::RT2, 0 },
+		static i32 motor_input_prev = 0;
+
+		static std::unordered_map<Controller::Axis, i16> input_state
+		{
+			{ Controller::LT2, Controller::min },
+			{ Controller::RT2, Controller::min },
 		};
 
-		input[num] = val;
+		constexpr i32 axis_min = Controller::min, axis_max = Controller::max;
 
-		i32 motor_input = input[Controller::RT2] - input[Controller::LT2];
+		auto i = input_state.find(num);
+		if(i == input_state.end())
+			return;
 
-		u8 speed = Driver::Speed::STOP;
-		if(motor_input < 0)
-			speed = map<u8>(motor_input, 0, -i32(lim<u16>::max()), Driver::Speed::STOP, Driver::Speed::BACK_FULL);
-		else
-			speed = map<u8>(motor_input, 0,  i32(lim<u16>::max()), Driver::Speed::STOP, Driver::Speed::FORWARD_FULL);
+		i->second = val;
 
-		if(speed != motor_speed_prev)
+		// motor control
+		//###############
+		i32 input = input_state[Controller::RT2] - input_state[Controller::LT2];
+		if(motor_input_prev != input)
 		{
-			motor_speed_prev = speed;
-			fmt::print("{:10} MOTOR: {:5} => {:02x}\n", time, motor_input, speed);
-			driver.drive(speed);
+			motor_input_prev = input;
+
+			u8 speed = Driver::Speed::STOP;
+			if(input < 0)
+				speed = map<u8>(input, 0, axis_min*2, Driver::Speed::STOP, Driver::Speed::BACK_FULL);
+			else
+				speed = map<u8>(input, 0, axis_max*2, Driver::Speed::STOP, Driver::Speed::FORWARD_FULL);
+
+			static u8 speed_prev = Driver::Speed::STOP;
+			if(speed != speed_prev)
+			{
+				speed_prev = speed;
+				fmt::print("MOTOR: {:5} => {:02x}\n", input, speed);
+				driver.drive(speed);
+			}
 		}
 	};
 

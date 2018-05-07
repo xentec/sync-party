@@ -10,6 +10,7 @@ set(SOURCES
 	driver.hpp
 	driver.cpp
 	main.cpp
+	util.hpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
