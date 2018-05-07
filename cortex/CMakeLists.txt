@@ -10,6 +10,8 @@ set(SOURCES
 	driver.hpp
 	driver.cpp
 	main.cpp
+	steering.hpp
+	steering.cpp
 	util.hpp
 )
 
@@ -35,7 +37,8 @@ target_link_libraries(${PROJECT_NAME}
 	PUBLIC
 	# static
 	# dynamic
-		${CMAKE_THREAD_LIBS_INIT}
+	    ${CMAKE_THREAD_LIBS_INIT}
+		stdc++fs
 		${Boost_LIBRARIES}
 		fmt
 )
