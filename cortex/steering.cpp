@@ -92,6 +92,6 @@ void Steering::steer(u32 pwm)
 	else if(pwm < DC_PHY_MIN)
 		pwm = DC_PHY_MIN;
 
-//	sd.write_some(buffer(fmt::format("{}\n", pwm)));
+	sd.write_some(buffer(fmt::format("{}\n", pwm)));
 }
 
