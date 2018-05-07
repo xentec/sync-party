@@ -7,7 +7,7 @@ Controller::Controller(io_context& ctx, const char* dev_path)
 {
 	int fd = open(dev_path, O_RDONLY | O_NONBLOCK);
 	if(0> fd)
-		throw std::system_error(-fd, std::system_category());
+		throw std::system_error(errno, std::system_category(), "failed to init controller");
 
 	sd.assign(fd);
 
