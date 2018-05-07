@@ -44,8 +44,8 @@ namespace motor
 	pinMode(LED_BUILTIN, OUTPUT);
 
 	// setup TIMER2
-	//enable the compare interrupt
-	TIMSK2 = (1<<OCIE2A);
+	//enable the compare interrupt, not needed at first time
+	//TIMSK2 = (1<<OCIE2A);
 	//set the compare register to the stop value
 	OCR2A = 0x30;
 	TCNT2=0x00;
@@ -64,11 +64,14 @@ namespace motor
 	if(speed < 0x10) speed = 0x10;
 	else if(speed > 0x90) speed = 0x90;
 
+	//change LED on the board when the motor is stopped
 	digitalWrite(13, speed != Control::STOP ? HIGH : LOW);
 
-	ctrl=speed;
-	//enable the compare interrupt
-	TIMSK2=(1<<OCIE2A);
+	if(ctrl!=speed){
+		ctrl=speed;
+		//enable the compare interrupt
+		TIMSK2=(1<<OCIE2A);
+	}
   }
 
   inline void stop()
