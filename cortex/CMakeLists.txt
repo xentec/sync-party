@@ -15,6 +15,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 target_compile_features(${PROJECT_NAME} PUBLIC "cxx_std_17") # C++17
 target_compile_options(${PROJECT_NAME} PUBLIC "-Wall")       # include all warnings
 
+target_compile_definitions(${PROJECT_NAME} PUBLIC "BOOST_ASIO_NO_DEPRECATED=1")
+
 # Libraries
 find_package(Threads REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
@@ -25,7 +27,7 @@ target_link_libraries(${PROJECT_NAME}
 	PUBLIC
 	# static
 	# dynamic
-	    ${CMAKE_THREAD_LIBS_INIT}
+		${CMAKE_THREAD_LIBS_INIT}
 		${Boost_LIBRARIES}
 		fmt
 )
