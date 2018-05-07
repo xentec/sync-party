@@ -92,8 +92,16 @@ struct Driver
 
 	void drive(u8 speed)
 	{
+		send(MOTOR, speed);
+	}
+
+private:
+	using buffer_iter = buffers_iterator<const_buffer>;
+
+	void send(Type type, u8 value)
+	{
 		std::ostream out(&buf_w);
-		char data[2] = { MOTOR, char(speed) };
+		char data[] = { char(type), char(value) };
 
 		out << '[' << data << ']';
 		dev.async_write_some(buf_w.data(), [this](auto ec, usz len)
@@ -103,7 +111,6 @@ struct Driver
 		});
 	}
 
-private:
 	void recv_start()
 	{
 		dev.async_read_some(buf_r.prepare(16), [this](auto ec, auto len) { recv_handle(ec, len); });
@@ -116,63 +123,60 @@ private:
 			fmt::print("failed to read from driver: {}\n", ec.message());
 			return;
 		}
-/*
-		constexpr usz pktSize = 4;
+
 		buf_r.commit(len);
 
-		const_buffers_1::const_iterator begin;
+		constexpr usz pkt_size = 4;
 
 		bool stop = false;
 		do {
-			auto pkt(buf_r.data());
+			buffer_iter pkt_begin(buffers_begin(buf_r.data())),
+						pkt_end(buffers_end(buf_r.data()));
 
-			switch(parseState)
+			switch(parse_state)
 			{
 			case SYNC:
-				begin = std::find(pkt.begin(), pkt.end(), SYNC_BYTE::BEGIN);
-				if(pkt.empty())
+				pkt_begin = std::find(pkt_begin, pkt_end, SYNC_BYTE::BEGIN);
+				if(pkt_begin == pkt_end)
 				{
 					stop = true; break;
 				}
 
-				pkt.advance(); // drop sync byte
-				buf_r.consume(1);
-				parseState = DATA;
+				buf_r.consume(usz(std::distance(pkt_begin, pkt_end)));
+				pkt_begin++;
+				parse_state = DATA;
 			case DATA:
-				if(pkt.size() < pktSize+1)
+				if(buf_r.size() < pkt_size)
 				{
 					stop = true; break;
 				}
-	//			if(auto tail = std::next(pkt.begin(), pktSize); *tail == 0xAB) // [SYNC [pkt] SYNC+pktSize] // TODO: C++17
+				if(auto tail = std::next(pkt_begin, pkt_size); *tail == SYNC_BYTE::END)
 				{
-					auto tail = std::next(pkt.begin(), pktSize);
-					if(*tail == 0xAB)
+					pkt_end = std::next(tail);
+					switch(u8(*pkt_begin))
 					{
-						pkt.end() = std::next(tail);
-						if(!valid(pkt))
-						{
-							logger->debug("RECV: crc fail: {:02X}", fmt::join(pkt.begin(), pkt.end(), " "));
-						}
-						else
-						{
-							DBG(logger, "RECV: {:02X}", fmt::join(pkt.begin(), pkt.end(), " "));
-							on_packet(pkt);
-							bufs.r.consume(pkt.size());
-						}
+					case PING:
+					case MOTOR:
+					case GAP:
+					case ERR:
+						on_packet(Type(*pkt_begin), *++pkt_begin);
+					default: break;
 					}
+
+					buf_r.consume(usz(std::distance(pkt_begin, pkt_end)));
 				}
 			default:
-				parseState = SYNC;
+				parse_state = SYNC;
 			}
 		} while(!stop);
 
-*/
-
-		buf_r.commit(len);
-//		auto &ev = *buffer_cast<const input_event*>(buf.data());
-		fmt::print("RECV: {}\n", len);
 		buf_r.consume(len);
 		recv_start();
+	}
+
+	void on_packet(Type type, u8 value)
+	{
+
 	}
 
 	serial_port dev;
@@ -181,7 +185,7 @@ private:
 	enum ParseState
 	{
 		SYNC, DATA
-	} parseState = SYNC;
+	} parse_state = SYNC;
 	enum SYNC_BYTE { BEGIN = '[', END = ']' };
 };
 
