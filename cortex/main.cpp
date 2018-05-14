@@ -7,12 +7,18 @@
 #include "driver.hpp"
 #include "steering.hpp"
 
+#include "logger.hpp"
+
 #include <fmt/format.h>
 
 int main()
 {
+	auto console = slog::stdout_color_st("console");
+	console->info("sp-cortex v0.1");
+
 	io_context ioctx;
 
+	console->info("initialising hardware...");
 	Controller ctrl(ioctx, "/dev/input/js0");
 	Driver driver(ioctx, "/dev/ttyACM0");
 	Steering steering(ioctx);
@@ -52,7 +58,7 @@ int main()
 			if(speed != speed_prev)
 			{
 				speed_prev = speed;
-				fmt::print("MOTOR: {:5} => {:02x}\n", input, speed);
+				console->debug("motor: {:5} => {:02x}", input, speed);
 				driver.drive(speed);
 			}
 		}
@@ -68,6 +74,7 @@ int main()
 		}
 	};
 
+	console->debug("running...");
 	ioctx.run();
 
 	return 0;

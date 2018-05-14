@@ -20,7 +20,6 @@ using u64 = uint64_t;
 using f32 = float;
 using f64 = double;
 
-
 // pointer size dependent
 using isz = ptrdiff_t;
 using usz = size_t;
