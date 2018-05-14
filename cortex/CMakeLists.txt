@@ -9,6 +9,7 @@ set(SOURCES
 	controller.cpp
 	driver.hpp
 	driver.cpp
+	logger.hpp
 	main.cpp
 	steering.hpp
 	steering.cpp
@@ -32,6 +33,16 @@ find_package(Threads REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 
 add_subdirectory(extern/fmtlib EXCLUDE_FROM_ALL)
+add_subdirectory(extern/spdlog EXCLUDE_FROM_ALL)
+
+#set(MQTT_NO_TLS OFF)
+#add_subdirectory(extern/mqtt_cpp EXCLUDE_FROM_ALL)
+
+target_include_directories(${PROJECT_NAME}
+	PUBLIC
+	    extern/spdlog/include
+		extern/mqtt_cpp/include
+)
 
 target_link_libraries(${PROJECT_NAME}
 	PUBLIC

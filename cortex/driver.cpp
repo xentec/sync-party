@@ -2,7 +2,8 @@
 
 
 Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
-	: dev(ioctx, dev_path)
+	: logger(slog::stdout_color_st("driver"))
+	, dev(ioctx, dev_path)
 	, parse_state(SYNC)
 {
 	dev.set_option(boost::asio::serial_port::baud_rate(115200));
@@ -36,7 +37,7 @@ void Driver::recv_handle(boost::system::error_code ec, usz len)
 {
 	if(ec)
 	{
-		//			fmt::print("failed to read from driver: {}\n", ec.message());
+		logger->error("failed to read from driver: {}\n", ec.message());
 		return;
 	}
 

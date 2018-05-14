@@ -3,7 +3,8 @@
 #include <linux/joystick.h>
 
 Controller::Controller(io_context& ctx, const char* dev_path)
-	: sd(ctx)
+	: logger(slog::stdout_color_st("ctrl"))
+	, sd(ctx)
 {
 	int fd = open(dev_path, O_RDONLY | O_NONBLOCK);
 	if(0> fd)
@@ -23,7 +24,7 @@ void Controller::recv_handle(boost::system::error_code ec, usz len)
 {
 	if(ec)
 	{
-//		fmt::print("failed to read from controller: {}\n", ec.message());
+		logger->error("failed to read from controller: {}\n", ec.message());
 		return;
 	}
 

@@ -2,6 +2,7 @@
 
 #include "asio.hpp"
 #include "types.hpp"
+#include "logger.hpp"
 
 #include <boost/asio/serial_port.hpp>
 #include <boost/asio/buffers_iterator.hpp>
@@ -39,6 +40,7 @@ private:
 
 	void on_packet(Type type, u8 value);
 
+	loggr logger;
 	serial_port dev;
 	streambuf buf_r, buf_w;
 

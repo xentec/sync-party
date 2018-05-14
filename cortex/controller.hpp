@@ -2,6 +2,7 @@
 
 #include "asio.hpp"
 #include "types.hpp"
+#include "logger.hpp"
 
 #include <boost/asio/streambuf.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
@@ -27,6 +28,7 @@ private:
 	void recv_start();
 	void recv_handle(error_code ec, usz len);
 
+	loggr logger;
 	posix::stream_descriptor sd;
 	streambuf buf;
 };
