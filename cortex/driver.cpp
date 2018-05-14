@@ -4,25 +4,27 @@
 Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 	: logger(slog::stdout_color_st("driver"))
 	, dev(ioctx, dev_path)
-	, wd_feed(ioctx)
+	, wd_feeder(ioctx)
 	, parse_state(SYNC)
 {
 	dev.set_option(boost::asio::serial_port::baud_rate(115200));
 	recv_start();
 
-	wd_feed.expires_after(std::chrono::milliseconds(50));
-	wd_feed.async_wait([this](auto err)
-	{
-		if(err) return;
-
-		send(PING, 0);
-		wd_feed.expires_after(std::chrono::milliseconds(50));
-	});
+	wd_feed({});
 }
 
 void Driver::drive(u8 speed)
 {
 	send(MOTOR, speed);
+}
+
+void Driver::wd_feed(error_code err)
+{
+	if(err) return;
+
+	send(PING, 0);
+	wd_feeder.expires_after(std::chrono::milliseconds(50));
+	wd_feeder.async_wait([this](auto ec){ wd_feed(ec); });
 }
 
 void Driver::send(Driver::Type type, u8 value)
