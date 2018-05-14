@@ -4,9 +4,13 @@
 #include "types.hpp"
 #include "logger.hpp"
 
-#include <boost/asio/serial_port.hpp>
+
 #include <boost/asio/buffers_iterator.hpp>
+#include <boost/asio/serial_port.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <boost/asio/streambuf.hpp>
+
+
 
 struct Driver
 {
@@ -42,6 +46,7 @@ private:
 
 	loggr logger;
 	serial_port dev;
+	steady_timer wd_feed;
 	streambuf buf_r, buf_w;
 
 	enum ParseState
