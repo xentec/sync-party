@@ -43,6 +43,7 @@ Steering::Steering(io_context &ioctx)
 	len = write(fd, period.data(), period.size());
 	if(0> len)
 		throw std::system_error(errno, std::system_category(), "failed to init steering: period write");
+	close(fd);
 
 	fd = open((path_pwm / "duty_cycle").c_str(), O_WRONLY);
 	if(0> fd)
@@ -72,16 +73,12 @@ Steering::~Steering()
 
 void Steering::steer(i8 degree)
 {
-	u32 pwm = map<u32, i8>(degree, -90, 90, DC_SERVO_MIN, DC_SERVO_MAX);
-	fmt::print("STEER: {:2} => {:7}\n", degree, pwm);
-	steer(pwm);
+	steer(map<u32, i8>(degree, -90, 90, DC_SERVO_MIN, DC_SERVO_MAX));
 }
 
 void Steering::steer(i16 axis_input)
 {
 	u32 pwm = map<f32>(axis_input, Controller::min, Controller::max, DC_PHY_MIN, DC_PHY_MAX);
-	fmt::print("STEER: {:5} => {:7}\n", axis_input, pwm);
-
 	steer(pwm);
 }
 
