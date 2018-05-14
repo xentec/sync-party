@@ -43,10 +43,11 @@ private:
 	void recv_handle(error_code ec, usz len);
 
 	void on_packet(Type type, u8 value);
+	void wd_feed(error_code err);
 
 	loggr logger;
 	serial_port dev;
-	steady_timer wd_feed;
+	steady_timer wd_feeder;
 	streambuf buf_r, buf_w;
 
 	enum ParseState
