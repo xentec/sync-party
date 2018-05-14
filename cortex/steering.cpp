@@ -23,17 +23,22 @@ static const fs::path path_pwm = "/sys/class/pwm/pwmchip0/pwm0";
 Steering::Steering(io_context &ioctx)
 	: sd(ioctx)
 {
-	return;
+	int fd;
+	isz len;
 
-	int fd = open((path_ctl / "export").c_str(), O_WRONLY);
-	if(0> fd)
-		throw std::system_error(errno, std::system_category(), "failed to init steering: path_ctl");
+	if(!fs::exists(path_pwm))
+	{
+		fd = open((path_ctl / "export").c_str(), O_WRONLY);
+		if(0> fd)
+			throw std::system_error(errno, std::system_category(), "failed to init steering: path_ctl");
 
-	isz len = write(fd, "0\n", 2);
-	if(0> len)
-		throw std::system_error(errno, std::system_category(), "failed to init steering: export");
+		len = write(fd, "0\n", 2);
+		if(0> len)
+			throw std::system_error(errno, std::system_category(), "failed to init steering: export");
 
-	close(fd);
+		close(fd);
+	}
+
 
 	fd = open((path_pwm / "period").c_str(), O_WRONLY);
 	if(0> fd)
@@ -44,6 +49,7 @@ Steering::Steering(io_context &ioctx)
 	if(0> len)
 		throw std::system_error(errno, std::system_category(), "failed to init steering: period write");
 	close(fd);
+
 
 	fd = open((path_pwm / "duty_cycle").c_str(), O_WRONLY);
 	if(0> fd)
@@ -89,6 +95,6 @@ void Steering::steer(u32 pwm)
 	else if(pwm < DC_PHY_MIN)
 		pwm = DC_PHY_MIN;
 
-	sd.write_some(buffer(fmt::format("{}\n", pwm)));
+//	sd.write_some(buffer(fmt::format("{}\n", pwm)));
 }
 
