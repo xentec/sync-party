@@ -14,6 +14,10 @@
 #include "types.hpp"
 
 
+ io_context ioctx;
+ Driver driver(ioctx, "/dev/ttyACM0");
+ Steering steering(ioctx);
+
 void mosq_log_callback(struct mosquitto *mosq, void *userdata, int level, const char *str)
 {
 	/* Pring all log messages regardless of level. */
@@ -78,9 +82,7 @@ void my_message_callback(struct mosquitto *mosq, void *userdata, const struct mo
 		fflush(stdout);
 }
 
- io_context ioctx;
- Driver driver(ioctx, "/dev/ttyACM0");
- Steering steering(ioctx);
+
 
 int main(int argc, char *argv[])
 {
