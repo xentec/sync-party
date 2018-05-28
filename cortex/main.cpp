@@ -14,9 +14,9 @@
 #include "types.hpp"
 
 
- io_context ioctx;
- Driver driver(ioctx, "/dev/ttyACM0");
- Steering steering(ioctx);
+// io_context ioctx;
+// Driver driver(ioctx, "/dev/ttyACM0");
+// Steering steering(ioctx);
 
 void mosq_log_callback(struct mosquitto *mosq, void *userdata, int level, const char *str)
 {
@@ -73,8 +73,20 @@ void my_message_callback(struct mosquitto *mosq, void *userdata, const struct mo
 {
 	if(message->payloadlen){
 		
-		if(strcmp(message->topic , "/controller/motor")==0) driver.drive(int(message->payload));
-		if(strcmp(message->topic, "/controller/steering")==0) steering.steer(i8(message->payload));
+		if(strcmp(message->topic , "/controller/motor")==0) {
+			char temp=*((char*)(message->payload));
+			int inttemp=(int)temp;
+			printf("Motor: %d", inttemp);
+		}
+		if(strcmp(message->topic, "/controller/steering")==0) {
+			i16 var;
+			char* ptrvar=(char*)&var;
+			char* ptrtar=(char*)(message->payload);
+			for(int i=0; i<message->payloadlen; i++){
+				ptrvar[i]=ptrtar[i];
+			}
+			printf("Steuer: %d", var);
+		}
 		//printf("%s %s\n", message->topic, message->payload);
 	}else{
 		printf("%s (null)\n", message->topic);
@@ -98,4 +110,6 @@ int main(int argc, char *argv[])
 
     mosquitto_message_callback_set(mosq, my_message_callback);
   }
+return 0;
 }
+
