@@ -1,4 +1,5 @@
 /*
+  The mqqt task which checks the controller data and send it to the broker
   needs libmosquitto-dev
   $ gcc -o libmosq libmosq.c -lmosquitto
 */
