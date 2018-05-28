@@ -1,5 +1,5 @@
 /*
-  The mqqt task which checks the controller data and send it to the broker
+  The mqqt task which gets data from  broker and sends it to arduino
   needs libmosquitto-dev
   $ gcc -o libmosq libmosq.c -lmosquitto
 */
