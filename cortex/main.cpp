@@ -73,8 +73,8 @@ void my_message_callback(struct mosquitto *mosq, void *userdata, const struct mo
 {
 	if(message->payloadlen){
 		
-		if(strcmp(message->topic , "/controller/motor")!=0) driver.drive(int(message->payload));
-		if(strcmp(message->topic, "/controller/steering")!=0) steering.steer(i8(message->payload));
+		if(strcmp(message->topic , "/controller/motor")==0) driver.drive(int(message->payload));
+		if(strcmp(message->topic, "/controller/steering")==0) steering.steer(i8(message->payload));
 		//printf("%s %s\n", message->topic, message->payload);
 	}else{
 		printf("%s (null)\n", message->topic);
