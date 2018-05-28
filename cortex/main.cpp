@@ -80,7 +80,11 @@ void my_message_callback(struct mosquitto *mosq, void *userdata, const struct mo
 
 int main(int argc, char *argv[])
 {
+  io_context ioctx;
+  Driver driver(ioctx, "/dev/ttyACM0");
+  Steering steering(ioctx);		
   mqtt_setup();
+	
 	
   int i = -1000;
   char *buf = malloc(64);
