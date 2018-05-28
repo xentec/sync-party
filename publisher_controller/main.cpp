@@ -113,7 +113,7 @@ int main()
 			if(speed != speed_prev)
 			{
 				speed_prev = speed;
-				fmt::print("MOTOR: {:5} => {:02x}\n", input, speed);
+				//fmt::print("MOTOR: {:5} => {:02x}\n", input, speed);
 				//publish MQTT speed
 				mosquitto_publish(mosq,NULL,"/controller/motor",sizeof(u8),speed,0,0);
 				//driver.drive(speed);
