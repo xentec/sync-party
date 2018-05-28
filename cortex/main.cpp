@@ -84,7 +84,7 @@ void my_message_callback(struct mosquitto *mosq, void *userdata, const struct mo
 
 int main(int argc, char *argv[])
 {
-  i		
+  		
   mqtt_setup();
 	
 	
