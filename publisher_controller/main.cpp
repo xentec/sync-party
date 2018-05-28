@@ -128,7 +128,7 @@ int main()
 		{
 			steer_input_prev = steer;
 			//publish MQTT steering
-			mosquitto_publish(mosq,NULL,"/controller/steering",strlen(steer),steer,0,0);
+			mosquitto_publish(mosq,NULL,"/controller/steering",sizeof(i16),steer,0,0);
 			//steering.steer(steer);
 		}
 	};
