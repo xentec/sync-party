@@ -1,4 +1,3 @@
-
 #include "asio.hpp"
 #include "types.hpp"
 #include "util.hpp"
@@ -7,21 +6,77 @@
 #include "driver.hpp"
 #include "steering.hpp"
 
-#include "logger.hpp"
-
 #include <fmt/format.h>
+//MQTT include
+#include <stdio.h>
+#include <mosquitto.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#define PORT 1111
+
+
+void mosq_log_callback(struct mosquitto *mosq, void *userdata, int level, const char *str)
+{
+	/* Pring all log messages regardless of level. */
+  
+  switch(level){
+    //case MOSQ_LOG_DEBUG:
+    //case MOSQ_LOG_INFO:
+    //case MOSQ_LOG_NOTICE:
+    case MOSQ_LOG_WARNING:
+    case MOSQ_LOG_ERR: {
+      printf("%i:%s\n", level, str);
+    }
+  }
+  
+	
+}
+
+struct mosquitto *mosq = NULL;
+char *topic = NULL;
+void mqtt_setup(){
+
+	char *host = "localhost";
+	int port = PORT;
+	int keepalive = 60;
+	bool clean_session = true;
+  topic = "/motor";
+  
+  mosquitto_lib_init();
+  mosq = mosquitto_new(NULL, clean_session, NULL);
+  if(!mosq){
+		fprintf(stderr, "Error: Out of memory.\n");
+		exit(1);
+	}
+  
+  mosquitto_log_callback_set(mosq, mosq_log_callback);
+  
+  if(mosquitto_connect(mosq, host, port, keepalive)){
+		fprintf(stderr, "Unable to connect.\n");
+		exit(1);
+	}
+  int loop = mosquitto_loop_start(mosq);
+  if(loop != MOSQ_ERR_SUCCESS){
+    fprintf(stderr, "Unable to start loop: %i\n", loop);
+    exit(1);
+  }
+}
+
+int mqtt_send(char *msg){
+  return mosquitto_publish(mosq, NULL, topic, strlen(msg), msg, 0, 0);
+}
 
 int main()
 {
-	auto console = slog::stdout_color_st("console");
-	console->info("sp-cortex v0.1");
-
+	//MQTT
+	mqtt_setup();
+	
 	io_context ioctx;
 
-	console->info("initialising hardware...");
 	Controller ctrl(ioctx, "/dev/input/js0");
-	Driver driver(ioctx, "/dev/ttyACM0");
-	Steering steering(ioctx);
+	//Driver driver(ioctx, "/dev/ttyACM0");
+	//Steering steering(ioctx);
 
 	ctrl.on_axis = [&](u32, Controller::Axis num, i16 val)
 	{
@@ -58,8 +113,10 @@ int main()
 			if(speed != speed_prev)
 			{
 				speed_prev = speed;
-				console->debug("motor: {:5} => {:02x}", input, speed);
-				driver.drive(speed);
+				fmt::print("MOTOR: {:5} => {:02x}\n", input, speed);
+				//publish MQTT speed
+				mosquitto_publish(mosq,NULL,"/controller/motor",strlen(speed),speed,0,0);
+				//driver.drive(speed);
 			}
 		}
 
@@ -70,11 +127,12 @@ int main()
 		if(steer_input_prev != steer)
 		{
 			steer_input_prev = steer;
-			steering.steer(steer);
+			//publish MQTT steering
+			mosquitto_publish(mosq,NULL,"/controller/steering",strlen(steer),steer,0,0);
+			//steering.steer(steer);
 		}
 	};
 
-	console->debug("running...");
 	ioctx.run();
 
 	return 0;
