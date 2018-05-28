@@ -52,6 +52,7 @@ target_link_libraries(${PROJECT_NAME}
 		stdc++fs
 		${Boost_LIBRARIES}
 		fmt
+		mosquitto
 )
 
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
