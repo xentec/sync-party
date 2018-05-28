@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 
-project(sp-cortex CXX)
+project(publisher_controller CXX)
 
 # include sources
 set(SOURCES
