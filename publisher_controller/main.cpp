@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#define PORT 1111
+#define PORT 4444
 
 
 void mosq_log_callback(struct mosquitto *mosq, void *userdata, int level, const char *str)
