@@ -78,16 +78,17 @@ void my_message_callback(struct mosquitto *mosq, void *userdata, const struct mo
 		fflush(stdout);
 }
 
+ io_context ioctx;
+ Driver driver(ioctx, "/dev/ttyACM0");
+ Steering steering(ioctx);
+
 int main(int argc, char *argv[])
 {
-  io_context ioctx;
-  Driver driver(ioctx, "/dev/ttyACM0");
-  Steering steering(ioctx);		
+  i		
   mqtt_setup();
 	
 	
-  int i = -1000;
-  char *buf = malloc(64);
+  
   int subs0 = mosquitto_subscribe(mosq,NULL,"/controller/motor",0);
   int subs1 = mosquitto_subscribe(mosq,NULL,"/controller/steering",0);
   
