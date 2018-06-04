@@ -2,6 +2,26 @@
 
 #define DEBUG 1
 
+void *StartSyncCamera(void *thread_data) {
+    struct camera_thread_data *local_data;
+    local_data = (struct camera_thread_data*) thread_data;
+    cout << "Searching for pattern...\n";
+    double matchvalue = 0.0;
+    *local_data->returnvalue = -1;
+    for(;;) {
+        matchvalue = local_data->cap->PatternMatching_scaled(CV_TM_SQDIFF_NORMED); //look for pattern
+        if (matchvalue>0) break; //pattern found, break loop
+        local_data->cap->FlushFrames(1); //if no pattern was detected, keep camera busy for 1 second
+    }
+    cout << "Pattern found, matchvalue: " << matchvalue << "\n";
+    local_data->cap->InitializeTracker("KCF");
+    //int xcoord = 0;
+    for(;;) {
+        *local_data->returnvalue = local_data->cap->TrackNext();
+    }
+}
+
+
 /**
  * @brief ContinuousScanBarcode Keeps scanning for barcodes
  * @param thread_data A pointer to a barcode_thread_data structure
@@ -47,7 +67,7 @@ SyncCamera::~SyncCamera() {
  */
 
 void SyncCamera::set_resolution(int width, int height) {
-    //cap.set(CV_CAP_PROP_FOURCC, CV_FOURCC('M','J','P','G') );
+    cap.set(CAP_PROP_FOURCC, CAP_OPENCV_MJPEG);
     cap.set(CAP_PROP_FRAME_WIDTH,width);
     cap.set(CAP_PROP_FRAME_HEIGHT,height);
     cam_fps = cap.get(CAP_PROP_FPS); //read back fps
@@ -59,6 +79,10 @@ void SyncCamera::set_resolution(int width, int height) {
  */
 void SyncCamera::set_pattern(String pattern) {
     input_template = imread(pattern,IMREAD_COLOR);
+}
+
+void SyncCamera::set_matchval(double value) {
+    matchval = value;
 }
 
 
@@ -127,7 +151,7 @@ long SyncCamera::ScanBarcode(int show_rectangle) {
  * @return -1 on error, 0 otherwise
  */
 
-double SyncCamera::PatternMatching_scaled(int match_method, double minMatchQuality, int iterations) {
+double SyncCamera::PatternMatching_scaled(int match_method, int iterations) {
     Mat result, image_resized;
     if (!cap.isOpened()) { return -1; }
     double matchVal_best = 0.0, scale_best = 0.0;
@@ -157,7 +181,7 @@ double SyncCamera::PatternMatching_scaled(int match_method, double minMatchQuali
             matchLoc = maxLoc;
             matchVal = maxVal;
         }
-        if(matchVal>minMatchQuality && matchVal>matchVal_best) { // new best match found, saving
+        if(matchVal>this->matchval && matchVal>matchVal_best) { // new best match found, saving
             matchVal_best = matchVal;
             matchLoc_best = matchLoc;
             scale_best = curr_scale;
@@ -185,13 +209,12 @@ double SyncCamera::PatternMatching_scaled(int match_method, double minMatchQuali
  * @param input_template A template image
  * @param image The image to search the template in. On a successful match, draws a rectangle around the match
  * @param match_method normalized OpenCV match method (defaults to CV_TM_SQDIFF_NORMED)
- * @param minMatch Quality quality threshold for pattern matching (values between 0 and 1)
  * @return 1 if a pattern was found
  * @return 0 if the pattern wasn't found within the image (score below threshold)
  * @return -1 on error
  */
 
-int SyncCamera::PatternMatching(int match_method, double minMatchQuality) {
+int SyncCamera::PatternMatching(int match_method) {
     Mat result, image;
     if (!cap.isOpened()) { return -1; }
     cap >> image;
@@ -216,7 +239,7 @@ int SyncCamera::PatternMatching(int match_method, double minMatchQuality) {
     }
     cout << "Val: " << matchVal << "   Location: " << matchLoc << "        \r";
     //reject if beloq minMatchQuality threshold
-    if (matchVal<minMatchQuality) {
+    if (matchVal<this->matchval) {
         if(DEBUG) {
             imshow("pattern?",image);
             waitKey(1);
@@ -263,7 +286,8 @@ int SyncCamera::InitializeTracker(string tracker_type) {
  */
 
 int SyncCamera::TrackNext() {
-    if (!cap.isOpened() || tracker_is_initialized == 1) { return -2; }
+    int return_value = 0;
+    if (!cap.isOpened() || tracker_is_initialized != 1) { return -2; }
     cap >> tracking_image;
     bool ok = tracker->update(tracking_image,tracking_rectangle);  //update tracker
     if(ok) { //if successful, return new x-coordinate
@@ -272,7 +296,8 @@ int SyncCamera::TrackNext() {
             imshow("tracking",tracking_image);
             waitKey(1);
         }
-        return (int)(tracking_rectangle.x + tracking_rectangle.width/2);
+        return_value = (int)(tracking_rectangle.x + tracking_rectangle.width/2);
+        return return_value;
     }
     else return -1;
 }
