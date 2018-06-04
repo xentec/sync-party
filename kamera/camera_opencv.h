@@ -7,6 +7,7 @@
 #include "zbar.h"
 #include <pthread.h>
 #include <iostream>
+#include <atomic>
 
 using namespace std;
 using namespace cv;
@@ -21,15 +22,17 @@ private:
     Ptr<Tracker> tracker;
     int tracker_is_initialized = 0;
     int cam_fps = 0;
+    double matchval = 0.7;
 
 public:
     SyncCamera(int camera_number);
     ~SyncCamera();
     void set_resolution(int width, int height);
     void set_pattern(String pattern);
-    double PatternMatching_scaled(int match_method = CV_TM_CCOEFF_NORMED, double minMatchQuality = 0.55, int iterations = 20);
+    void set_matchval(double value);
+    double PatternMatching_scaled(int match_method = CV_TM_CCOEFF_NORMED, int iterations = 20);
     long ScanBarcode(int show_rectangle=0);
-    int PatternMatching(int match_method = CV_TM_CCOEFF_NORMED, double minMatchQuality = 0.55);
+    int PatternMatching(int match_method = CV_TM_CCOEFF_NORMED);
     int TrackNext();
     int InitializeTracker(string tracker_type = "MEDIANFLOW");
     void FlushFrames(int seconds);
@@ -41,7 +44,12 @@ struct barcode_thread_data {
     int retries = 0; // 0 = infinite
 };
 
-void *ContinuousScanBarcode(void *thread_data);
+struct camera_thread_data {
+    SyncCamera *cap = NULL;
+    volatile int *returnvalue;
+};
 
+void *ContinuousScanBarcode(void *thread_data);
+void *StartSyncCamera(void *thread_data);
 #endif
 
