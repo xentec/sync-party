@@ -15,8 +15,8 @@ int main(int argc, char** argv)
     SyncCamera cam(j);
 
     cam.set_resolution(320,240);
-    cam.set_matchval(0.7);
-    cam.set_pattern("buch2.png");
+    cam.set_matchval(0.9);
+   // cam.set_pattern("buch2.png");
 
     pthread_t thread;
     camera_thread_data data;
