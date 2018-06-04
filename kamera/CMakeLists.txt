@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 find_package( OpenCV 3 REQUIRED )
 find_package( PkgConfig REQUIRED)
-PKG_CHECK_MODULES(GTK3 REQUIRED gtk+-3.0)
+PKG_CHECK_MODULES(GTK2 REQUIRED gtk+-2.0)
 
 MESSAGE(STATUS "${OpenCV_INCLUDE_DIRS}")
 MESSAGE(STATUS "${OpenCV_LIBS}")

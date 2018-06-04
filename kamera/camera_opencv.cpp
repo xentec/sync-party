@@ -1,6 +1,6 @@
 #include "camera_opencv.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 void *StartSyncCamera(void *thread_data) {
     struct camera_thread_data *local_data;
