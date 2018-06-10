@@ -111,7 +111,8 @@ Watchdog wd;
 namespace comm
 {
 enum {
-  SYNC_BYTE = '[',
+  BYTE_SYNC = '[',
+  BYTE_END = ']',
 };
 
 enum Type
@@ -136,7 +137,7 @@ enum State
 
 void send(byte type, byte data)
 {
-  Serial.write(SYNC_BYTE);
+  Serial.write(BYTE_SYNC);
   Serial.write(type);
   Serial.write(data);
   Serial.write(']');
@@ -156,25 +157,25 @@ void handle()
 	  b = Serial.read();
 	  if(b == -1)
 		return;
-	} while(b != SYNC_BYTE);
+	} while(b != BYTE_SYNC);
 	state = State::DATA;
 
   case State::DATA:
-	if(Serial.available() < 2)
+	if(Serial.available() < 3)
 	  return;
 
 	state = State::SYNC;
 
 	type = Serial.read();
 	data = Serial.read();
-
-	wd.reset();
+	if(Serial.read() != BYTE_END)
+		return;
 
 	switch(type)
 	{
 	case Type::PING:
 	  wd.reset();
-	  return;
+	  break;
 	case Type::MOTOR:
 	  motor::set_speed(data);
 	  break;
@@ -210,7 +211,7 @@ void loop()
 
   if(wd.check())
   {
-	comm::send(comm::Type::MOTOR, motor::Control::STOP);
 	motor::stop();
+	comm::send(comm::Type::MOTOR, motor::Control::STOP);
   }
 }

@@ -10,10 +10,9 @@ struct Steering
 	Steering(io_context &ioctx);
 	~Steering();
 
-	void steer(i8 degree);
-	void steer(i16 axis_input);
+	void steer(i16 degree);
 private:
-	void steer(u32 pwm);
+	void steer_pwm(u32 pwm);
 
 	posix::stream_descriptor sd;
 };

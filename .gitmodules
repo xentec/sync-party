@@ -8,7 +8,7 @@
 	branch = 4.1.0
 [submodule "mqtt_cpp"]
 	path = extern/mqtt_cpp
-	url = https://github.com/redboltz/mqtt_cpp
+	url = https://github.com/xentec/mqtt_cpp
 [submodule "spdlog"]
 	path = extern/spdlog
 	url = https://github.com/gabime/spdlog
