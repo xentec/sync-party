@@ -4,13 +4,12 @@
 #include "types.hpp"
 #include "logger.hpp"
 
-
 #include <boost/asio/buffers_iterator.hpp>
 #include <boost/asio/serial_port.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/streambuf.hpp>
 
-
+#include <deque>
 
 struct Driver
 {
@@ -33,11 +32,15 @@ struct Driver
 	Driver(io_context& ioctx, const char* dev_path);
 
 	void drive(u8 speed);
+	void gap(u8 sensor, std::function<void(error_code, u8 cm)> callback);
 
 private:
 	using buffer_iter = buffers_iterator<const_buffer>;
 
-	void send(Type type, u8 value);
+	void send(Type type, u8 value, std::function<void(error_code, u8 cm)> cb = {});
+
+	void send_start();
+	void send_handle(error_code ec, usz len);
 
 	void recv_start();
 	void recv_handle(error_code ec, usz len);
@@ -49,6 +52,13 @@ private:
 	serial_port dev;
 	steady_timer wd_feeder;
 	streambuf buf_r, buf_w;
+
+	struct Req
+	{
+		u8 type;
+		std::function<void(error_code, u8 cm)> cb;
+	};
+	std::deque<Req> q_r, q_w;
 
 	enum ParseState
 	{
