@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <avr/wdt.h>
 
 #define MOTOR_PIN 11
 #define WD_TIMEOUT_MS 200
@@ -203,6 +204,7 @@ void setup()
 	motor::init();
 	wd.reset();
 	Serial.begin(115200);
+	wdt_enable(WDTO_120MS);
 }
 
 void loop()
@@ -215,4 +217,5 @@ void loop()
 		motor::stop();
 //		comm::send(comm::Type::MOTOR, motor::Control::STOP);
 	}
+	wdt_reset();
 }
