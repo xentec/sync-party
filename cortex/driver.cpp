@@ -7,6 +7,7 @@ Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 	, speed_ctrl{ steady_timer(ioctx), Speed::STOP}
 {
 	dev.set_option(boost::asio::serial_port::baud_rate(115200));
+	tcdrain(dev.native_handle());
 	recv_start();
 }
 
