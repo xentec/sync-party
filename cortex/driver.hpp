@@ -24,9 +24,11 @@ struct Driver
 
 	enum Speed : u8
 	{
-		BACK_FULL    = 0x10,
+//		BACK_FULL    = 0x10,
+		BACK_FULL    = 0x20,
 		STOP         = 0x30,
-		FORWARD_FULL = 0x90,
+		FORWARD_FULL = 0x60,
+//		FORWARD_FULL = 0x90,
 	};
 
 	Driver(io_context& ioctx, const char* dev_path);
