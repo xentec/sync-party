@@ -1,7 +1,4 @@
-#define BOOST_ASIO_NO_DEPRECATED 1
-
 #include "driver.hpp"
-
 
 Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 	: logger(slog::stdout_color_st("driver"))

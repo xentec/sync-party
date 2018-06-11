@@ -35,7 +35,7 @@ struct Driver
 	void gap(u8 sensor, std::function<void(error_code, u8 cm)> callback);
 
 private:
-	using buffer_iter = buffers_iterator<const_buffer>;
+	using buffer_iter = buffers_iterator<const_buffers_1>;
 
 	void send(Type type, u8 value, std::function<void(error_code, u8 cm)> cb = {});
 
