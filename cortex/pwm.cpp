@@ -1,26 +1,17 @@
-#include "steering.hpp"
+#include "pwm.hpp"
 
-#include "util.hpp"
+#include <unistd.h>
+#include <fcntl.h>
 
 #include <fmt/format.h>
 #include <experimental/filesystem>
 
 namespace fs = std::experimental::filesystem;
 
-enum {
-	PERIOD =      20000000,
-
-	DC_SERVO_MIN =  500000,
-	DC_SERVO_MAX = 2500000,
-	DC_PHY_MIN =   1200000,
-	DC_PHY_MAX =   1800000,
-};
-
 static const fs::path path_ctl = "/sys/class/pwm/pwmchip0";
 static const fs::path path_pwm = "/sys/class/pwm/pwmchip0/pwm0";
 
-Steering::Steering(io_context &ioctx)
-	: sd(ioctx)
+PWM::PWM(u32 period)
 {
 	int fd;
 	isz len;
@@ -42,31 +33,25 @@ Steering::Steering(io_context &ioctx)
 	if(0> fd)
 		throw std::system_error(errno, std::system_category(), "period open");
 
-	auto period = fmt::format("{}\n", PERIOD);
-	len = write(fd, period.data(), period.size());
+	auto period_str = fmt::format("{}\n", period);
+	len = write(fd, period_str.data(), period_str.size());
 	if(0> len)
 		throw std::system_error(errno, std::system_category(), "period write");
 	close(fd);
 
 
-	fd = open((path_pwm / "duty_cycle").c_str(), O_WRONLY);
-	if(0> fd)
+	fds.dc = open((path_pwm / "duty_cycle").c_str(), O_WRONLY);
+	if(0> fds.dc)
 		throw std::system_error(errno, std::system_category(), "duty_cycle");
 
-	sd.assign(fd);
-	steer(0);
-
-	fd = open((path_pwm / "enable").c_str(), O_WRONLY);
-	if(0> fd)
+	fds.enable = open((path_pwm / "enable").c_str(), O_WRONLY);
+	if(0> fds.enable)
 		throw std::system_error(errno, std::system_category(), "enable");
-	len = write(fd, "1\n", 2);
-	close(fd);
 }
 
-Steering::~Steering()
+PWM::~PWM()
 {
-	steer(i8(0));
-	sd.close();
+	enable(false);
 
 	// disable pwm0
 	int fd = open((path_ctl / "unexport").c_str(), O_WRONLY);
@@ -74,18 +59,15 @@ Steering::~Steering()
 	close(fd);
 }
 
-void Steering::steer(i16 degree)
+void PWM::enable(bool on)
 {
-	steer_pwm(map<u32, i16>(degree, -9000, 9000, DC_PHY_MIN, DC_PHY_MAX));
+	auto str = fmt::format("{:d}\n", on);
+	write(fds.enable, str.data(), str.size());
 }
 
-void Steering::steer_pwm(u32 pwm)
+void PWM::set_duty_cycle(u32 pwm)
 {
-	if(pwm > DC_PHY_MAX)
-		pwm = DC_PHY_MAX;
-	else if(pwm < DC_PHY_MIN)
-		pwm = DC_PHY_MIN;
-
-	sd.write_some(buffer(fmt::format("{}\n", pwm)));
+	auto str = fmt::format("{}\n", pwm);
+	write(fds.dc, str.data(), str.size());
 }
 

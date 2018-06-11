@@ -8,8 +8,8 @@ set(SOURCES
 
 	driver.hpp
 	driver.cpp
-	steering.hpp
-	steering.cpp
+	pwm.hpp
+	pwm.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -28,7 +28,7 @@ target_link_libraries(${PROJECT_NAME}
 	PUBLIC
 	# static
 	# dynamic
-	    sp-common
+		sp-common
 		stdc++fs
 )
 

@@ -7,7 +7,7 @@
 #include "util.hpp"
 
 #include "driver.hpp"
-#include "steering.hpp"
+#include "pwm.hpp"
 
 #include <mqtt/client.hpp>
 #include <mqtt/str_connect_return_code.hpp>
@@ -50,7 +50,7 @@ int main()
 	logger->info("initialising hardware...");
 
 	auto driver = try_init<Driver>("driver", ioctx, "/dev/ttyACM0");
-	auto steering = try_init<Steering>("steering", ioctx);
+	auto steering = try_init<PWM>("steering", def::STEER_DC_PERIOD);
 
 	std::unordered_map<std::string, std::function<void(std::string)>> fn_map;
 	if(driver)
@@ -76,15 +76,20 @@ int main()
 	}
 	if(steering)
 	{
+		steering->set_duty_cycle(def::STEER_DC_DEF);
+		steering->enable(true);
 		fn_map.emplace(def::STEER_SUB, [&](const std::string& str)
 		{
-			static i16 steer_input_prev = 0;
-			i16 steer = std::atoi(str.c_str());
-			if(steer_input_prev != steer)
+			u32 pwm = map(std::atoi(str.c_str()),
+						  def::STEER_SCALE.min, def::STEER_SCALE.max,
+						  def::STEER_DC_SCALE.min, def::STEER_DC_SCALE.max);
+
+			static u32 pwm_prev = 0;
+			if(pwm_prev != pwm)
 			{
-				steer_input_prev = steer;
-				logger->debug("HW: steer: {:3}", steer);
-				steering->steer(steer);
+				pwm_prev = pwm;
+				logger->debug("HW: steer: {:9}", pwm);
+				steering->set_duty_cycle(pwm);
 			}
 		});
 	}
