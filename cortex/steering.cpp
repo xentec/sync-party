@@ -2,7 +2,7 @@
 
 #include "util.hpp"
 
-#include <fmt/posix.h>
+#include <fmt/format.h>
 #include <experimental/filesystem>
 
 namespace fs = std::experimental::filesystem;
@@ -76,7 +76,7 @@ Steering::~Steering()
 
 void Steering::steer(i16 degree)
 {
-	steer_pwm(map<u32, i16>(degree, -9000, 9000, DC_SERVO_MIN, DC_PHY_MAX));
+	steer_pwm(map<u32, i16>(degree, -9000, 9000, DC_PHY_MIN, DC_PHY_MAX));
 }
 
 void Steering::steer_pwm(u32 pwm)
