@@ -31,7 +31,8 @@ int main()
 	io_context ioctx;
 
 	logger->info("initialising controller...");
-	Controller ctrl(ioctx, Controller::Joystick, "/dev/input/js0");
+//	Controller ctrl(ioctx, Controller::Joystick, "/dev/input/js0");
+	Controller ctrl(ioctx, Controller::Keyboard, "/dev/input/event20");
 
 	logger->info("connecting to {}:{}", def::HOST, def::PORT);
 	auto mqtt_cl = mqtt::make_client(ioctx, def::HOST, def::PORT);
@@ -42,18 +43,13 @@ int main()
 
 	auto forward = [&](const std::string& sub, i32 value)
 	{
-		static i32 input_prev = 0;
-		if(input_prev != value)
-		{
-			input_prev = value;
-			auto str = fmt::FormatInt(value).c_str();
-			logger->debug("PUB: {}: {:6}", sub, str);
-			cl.publish(sub, str);
-		}
+		auto str = fmt::FormatInt(value).c_str();
+		logger->debug("PUB: {}: {:6}", sub, str);
+		cl.publish(sub, str);
 	};
 
-	auto motor = [&](i32 v) { forward(def::MOTOR_SUB, v); };
-	auto steer = [&](i32 v) { forward(def::STEER_SUB, v); };
+	auto motor = [&](i32 v) { on_change(v, [&](auto v){ forward(def::MOTOR_SUB, v); }); };
+	auto steer = [&](i32 v) { on_change(v, [&](auto v){ forward(def::STEER_SUB, v); }); };
 
 	ctrl.on_axis = [&](u32, Controller::Axis num, i16 val)
 	{
