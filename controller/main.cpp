@@ -68,7 +68,7 @@ int main()
 
 		i->second = val;
 
-		motor(map<i16>(input_state[Controller::RT2] - input_state[Controller::LT2],
+		motor(map<i16>(input_state[Controller::LT2] - input_state[Controller::RT2],
 					   axis_min*2, axis_max*2,
 					   def::MOTOR_SCALE.min, def::MOTOR_SCALE.max));
 		steer(map<i32, i32>(input_state[Controller::LS_H],
@@ -92,8 +92,8 @@ int main()
 
 		i->second = val > 0;
 
-		motor(def::MOTOR_SCALE.max * (input_state[KEY_W] - input_state[KEY_S]));
-		steer(def::STEER_SCALE.max * (input_state[KEY_A] - input_state[KEY_D]));
+		motor(def::MOTOR_SCALE.max / 4 * (input_state[KEY_S] - input_state[KEY_W]));
+		steer(def::STEER_SCALE.max * (input_state[KEY_D] - input_state[KEY_A]));
 	};
 
 #ifdef MOCK_CLIENT
