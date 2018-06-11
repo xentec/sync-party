@@ -151,6 +151,11 @@ int main()
 	};
 	brc({});
 
+	signal_set stop(ioctx, SIGINT, SIGTERM);
+	stop.async_wait([&](auto ec, int sig)
+	{
+		ioctx.stop();
+	});
 
 
 	logger->debug("running...");
