@@ -38,6 +38,21 @@ int main()
 	cl.set_clean_session(true);
 	cl.connect();
 
+	auto forward = [&](const std::string& sub, i32 value)
+	{
+		static i32 input_prev = 0;
+		if(input_prev != value)
+		{
+			input_prev = value;
+			auto str = fmt::FormatInt(value).c_str();
+			logger->debug("PUB: {}: {:6}", sub, str);
+			cl.publish(sub, str);
+		}
+	};
+
+	auto motor = [&](i32 speed) { forward("sp/motor", speed); };
+	auto steer = [&](i32 speed) { forward("sp/steer", speed); };
+
 	ctrl.on_axis = [&](u32, Controller::Axis num, i16 val)
 	{
 		static std::unordered_map<Controller::Axis, i16> input_state
@@ -55,44 +70,8 @@ int main()
 
 		i->second = val;
 
-		i32 input;
-
-		// motor control
-		//###############
-		input = input_state[Controller::RT2] - input_state[Controller::LT2];
-		static i32 motor_input_prev = 0;
-		if(motor_input_prev != input)
-		{
-			motor_input_prev = input;
-
-			static i16 speed_prev = 0;
-			i16 speed = 0;
-
-			if(input < 0)
-				speed = map<i16>(input, 0, axis_min*2, 0, -1000);
-			else if(input > 0)
-				speed = map<i16>(input, 0, axis_max*2, 0, 1000);
-
-			if(speed != speed_prev)
-			{
-				speed_prev = speed;
-				logger->debug("motor: {:6} => {:5}", input, speed);
-				cl.publish("sp/motor", fmt::FormatInt(speed).str());
-			}
-		}
-
-		// steer control
-		//###############
-		input = input_state[Controller::LS_H];
-		static i16 steer_prev = 0;
-		i16 steer = map<i16, i32>(input, Controller::axis_min, Controller::axis_max, -900, 900);
-		if(steer_prev != steer)
-		{
-			steer_prev = steer;
-			auto str = fmt::format("{:6}", steer);
-			logger->debug("steer: {}", str);
-			cl.publish("sp/steer", str);
-		}
+		motor(map<i16>(input_state[Controller::RT2] - input_state[Controller::LT2], axis_min*2, axis_max*2, -1000, 1000));
+		steer(map<i32, i32>(input_state[Controller::LS_H], Controller::axis_min, Controller::axis_max, -900, 900));
 	};
 
 	ctrl.on_key = [&](u32, u32 code, Controller::KeyState val)
@@ -105,45 +84,14 @@ int main()
 			{ KEY_D, 0 },
 		};
 
-		i32 input;
 		auto i = input_state.find(code);
 		if(i == input_state.end())
 			return;
 
 		i->second = val > 0;
 
-		// motor control
-		//###############
-		input = input_state[KEY_W] - input_state[KEY_S];
-		static i32 motor_input_prev = 0;
-		if(motor_input_prev != input)
-		{
-			motor_input_prev = input;
-
-			static i16 speed_prev = 0;
-			i16 speed = input * 1000;
-
-			if(speed != speed_prev)
-			{
-				speed_prev = speed;
-				auto str = fmt::FormatInt(speed).c_str();
-				logger->debug("motor: {:6}", str);
-				cl.publish("sp/motor", str);
-			}
-		}
-
-		// steer control
-		//###############
-		input = input_state[KEY_A] - input_state[KEY_D];
-		static i16 steer_prev = 0;
-		i16 steer = input * 9000;
-		if(steer_prev != steer)
-		{
-			steer_prev = steer;
-			auto str = fmt::FormatInt(steer).c_str();
-			logger->debug("steer: {:6}", str);
-			cl.publish("sp/steer", str);
-		}
+		motor(1000 * (input_state[KEY_W] - input_state[KEY_S]));
+		steer(9000 * (input_state[KEY_A] - input_state[KEY_D]));
 	};
 
 #ifdef MOCK_CLIENT
