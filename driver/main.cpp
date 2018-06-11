@@ -120,7 +120,8 @@ enum Type
 {
 	PING  = 0x0,
 	MOTOR = 0x1,
-	GAP   = 0x2,
+	ULTRA_SONIC = 0x2,
+	ANALOG = 0x3,
 
 	ERR = 0xFF
 };
@@ -180,8 +181,11 @@ void handle()
 		case Type::MOTOR:
 			motor::set_speed(data);
 			break;
-		case Type::GAP:
+		case Type::ULTRA_SONIC:
 			data = us_distance(data);
+			break;
+		case Type::ANALOG:
+			data = analogRead(data);
 			break;
 		default:
 			type = Type::ERR;
