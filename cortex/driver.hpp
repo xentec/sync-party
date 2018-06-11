@@ -58,7 +58,7 @@ private:
 		u8 type;
 		std::function<void(error_code, u8 cm)> cb;
 	};
-	std::deque<Req> q_r, q_w;
+	std::deque<Req> q;
 
 	enum ParseState
 	{

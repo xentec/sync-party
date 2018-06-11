@@ -14,8 +14,6 @@ Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 
 void Driver::drive(u8 speed)
 {
-	if(buf_w.size()) return;
-
 	send(MOTOR, speed);
 }
 
@@ -29,7 +27,7 @@ void Driver::wd_feed(error_code err)
 	if(err) return;
 
 	send(PING, 0);
-	wd_feeder.expires_after(std::chrono::milliseconds(50));
+	wd_feeder.expires_after(std::chrono::milliseconds(100));
 	wd_feeder.async_wait([this](auto ec){ wd_feed(ec); });
 }
 
@@ -38,39 +36,32 @@ void Driver::send(Type type, u8 value, std::function<void(error_code, u8 cm)> cb
 	logger->trace("TX {:02X} {:3}", type, value);
 
 	std::ostream out(&buf_w);
-	char data[] = { char(type), char(value) };
-
-	out << '[' << data << ']';
+	out << '[' << char(type) << char(value) << ']';
 	out.flush();
 
-	q_w.push_back({type, cb});
+	bool first = q.empty();
+	q.push_back({type, cb});
 
-	send_start();
+	if(first)
+		send_start();
 }
 
 void Driver::send_start()
 {
+	logger->trace("SEND: {:02x}", fmt::join(buffers_begin(buf_w.data()), buffers_end(buf_w.data()), " "));
 	dev.async_write_some(buf_w.data(), [this](auto ec, usz len){ send_handle(ec, len); });
 }
 
 void Driver::send_handle(error_code ec, usz len)
 {
-	Req *r = nullptr;
-	if(!q_w.empty())
-		r = &q_w.front();
-
 	buf_w.consume(len);
 
-	if(ec)
+	if(ec && !q.empty())
 	{
-		r->cb(ec, {});
-	} else if(r)
-	{
-		q_r.push_back(q_w.front());
-		q_w.pop_front();
+		Req &r = q.front();
+		r.cb(ec, {});
+		q.pop_front();
 	}
-
-	if(buf_w.size()) send_start();
 }
 
 void Driver::recv_start()
@@ -78,7 +69,7 @@ void Driver::recv_start()
 	dev.async_read_some(buf_r.prepare(32), [this](auto ec, usz len) { recv_handle(ec, len); });
 }
 
-void Driver::recv_handle(boost::system::error_code ec, usz len)
+void Driver::recv_handle(error_code ec, usz len)
 {
 	if(ec)
 	{
@@ -87,6 +78,8 @@ void Driver::recv_handle(boost::system::error_code ec, usz len)
 	}
 
 	buf_r.commit(len);
+	logger->trace("RECV: {:02x}", fmt::join(buffers_begin(buf_r.data()), buffers_end(buf_r.data()), " "));
+
 
 	constexpr usz pkt_size = 4;
 
@@ -104,9 +97,9 @@ void Driver::recv_handle(boost::system::error_code ec, usz len)
 			{
 				stop = true; break;
 			}
-
+			sync++;
 			buf_r.consume(usz(std::distance(pkt_begin, sync)));
-			pkt_begin = sync+1;
+			pkt_begin = sync;
 			parse_state = DATA;
 		}
 		case DATA:
@@ -117,17 +110,17 @@ void Driver::recv_handle(boost::system::error_code ec, usz len)
 			if(auto tail = std::next(pkt_begin, pkt_size-2); *tail == SYNC_BYTE::END)
 			{
 				pkt_end = std::next(tail);
-				switch(u8(*pkt_begin))
+				u8 type = u8(*pkt_begin);
+				switch(type)
 				{
 				case PING:
 				case MOTOR:
 				case GAP:
 				case ERR:
-					logger->trace("RX {:02X} {:3}");
-					on_packet(Type(*pkt_begin), *++pkt_begin);
+					logger->trace("RX {:02x} {:3d}  {}", type, pkt_begin[1], std::distance(pkt_begin, pkt_end));
+					on_packet(Type(type), pkt_begin[1]);
 				default: break;
 				}
-
 				buf_r.consume(usz(std::distance(pkt_begin, pkt_end)));
 			}
 		default:
@@ -139,17 +132,18 @@ void Driver::recv_handle(boost::system::error_code ec, usz len)
 
 void Driver::on_packet(Type type, u8 value)
 {
-	while(!q_r.empty())
+	while(!q.empty())
 	{
-		Req &r = q_r.front();
+		Req &r = q.front();
 		bool found = r.type == type;
 		if(found && r.cb)
 			r.cb({}, value);
 
-		q_r.pop_front();
+		q.pop_front();
 		if(!found)
 			logger->warn("tx/rx buffer async");
 		else
 			break;
 	}
+	if(q.size()) send_start();
 }
