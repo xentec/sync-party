@@ -3,13 +3,11 @@
 #include "types.hpp"
 #include "util.hpp"
 #include "logger.hpp"
+#include "echo.hpp"
 
 #include "controller.hpp"
 
-#include <mqtt_client_cpp.hpp>
-
-#include <boost/asio/ip/udp.hpp>
-
+#include <mqtt/client.hpp>
 #include <linux/input-event-codes.h>
 
 /* master
@@ -184,22 +182,8 @@ int main()
 	}
 #endif
 
-	ip::udp::socket echo(ioctx, ip::udp::v4());
-	ip::udp::endpoint echo_ep(ip::address_v4::broadcast(), 31337);
+	Echo echo(ioctx, 31337, NAME, std::chrono::seconds(10));
 
-	echo.set_option(ip::udp::socket::reuse_address(true));
-	echo.set_option(socket_base::broadcast(true));
-
-	auto echo_tmr = std::make_shared<steady_timer>(ioctx);
-	std::function<void(error_code ec)> brc;
-	brc = [&](error_code ec)
-	{
-		if(ec) return;
-		echo.send_to(buffer("sp lol"), echo_ep);
-		echo_tmr->expires_from_now(std::chrono::seconds(5));
-		echo_tmr->async_wait(brc);
-	};
-	brc({});
 
 	signal_set stop(ioctx, SIGINT, SIGTERM);
 	stop.async_wait([&](auto ec, int sig)
