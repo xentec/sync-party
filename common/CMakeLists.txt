@@ -5,12 +5,13 @@ project(sp-common CXX)
 # include sources
 set(SOURCES
 	asio.hpp
+	asio.cpp
 	logger.hpp
 	types.hpp
 	util.hpp
 )
 
-add_library(${PROJECT_NAME} INTERFACE)
+add_library(${PROJECT_NAME} STATIC ${SOURCES})
 
 target_compile_features(${PROJECT_NAME} INTERFACE "cxx_std_17") # C++17
 target_compile_options(${PROJECT_NAME} INTERFACE "-Wall")       # include all warnings
@@ -27,7 +28,7 @@ target_include_directories(${PROJECT_NAME} INTERFACE ${CMAKE_CURRENT_LIST_DIR})
 
 target_link_libraries(${PROJECT_NAME}
 	INTERFACE
-	    ${CMAKE_THREAD_LIBS_INIT}
+		${CMAKE_THREAD_LIBS_INIT}
 		${Boost_LIBRARIES}
 		fmt
 		spdlog
