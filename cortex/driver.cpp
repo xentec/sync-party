@@ -3,18 +3,21 @@
 Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 	: logger(slog::stdout_color_st("driver"))
 	, dev(ioctx, dev_path)
-	, wd_feeder(ioctx)
 	, parse_state(SYNC)
+	, speed_ctrl{ steady_timer(ioctx), Speed::STOP}
 {
 	dev.set_option(boost::asio::serial_port::baud_rate(115200));
 	recv_start();
-
-	wd_feed({});
 }
 
 void Driver::drive(u8 speed)
 {
-	send(MOTOR, speed);
+	speed_ctrl.curr = speed;
+
+	if(speed == Speed::STOP)
+		speed_ctrl.feeder.cancel();
+	else
+		wd_feed({});
 }
 
 void Driver::gap(u8 sensor, std::function<void(error_code, u8)> callback)
@@ -24,16 +27,16 @@ void Driver::gap(u8 sensor, std::function<void(error_code, u8)> callback)
 
 void Driver::wd_feed(error_code err)
 {
-	if(err) return;
+	send(MOTOR, speed_ctrl.curr);
 
-	send(PING, 0);
-	wd_feeder.expires_after(std::chrono::milliseconds(100));
-	wd_feeder.async_wait([this](auto ec){ wd_feed(ec); });
+	if(err) return;
+	speed_ctrl.feeder.expires_after(std::chrono::milliseconds(100));
+	speed_ctrl.feeder.async_wait([this](auto ec){ wd_feed(ec); });
 }
 
 void Driver::send(Type type, u8 value, std::function<void(error_code, u8 cm)> cb)
 {
-	logger->trace("TX {:02X} {:3}", type, value);
+//	logger->trace("TX {:02X} {:3}", type, value);
 
 	std::ostream out(&buf_w);
 	out << '[' << char(type) << char(value) << ']';
@@ -48,7 +51,7 @@ void Driver::send(Type type, u8 value, std::function<void(error_code, u8 cm)> cb
 
 void Driver::send_start()
 {
-	logger->trace("SEND: {:02x}", fmt::join(buffers_begin(buf_w.data()), buffers_end(buf_w.data()), " "));
+//	logger->trace("SEND: {:02x}", fmt::join(buffers_begin(buf_w.data()), buffers_end(buf_w.data()), " "));
 	dev.async_write_some(buf_w.data(), [this](auto ec, usz len){ send_handle(ec, len); });
 }
 
@@ -78,8 +81,7 @@ void Driver::recv_handle(error_code ec, usz len)
 	}
 
 	buf_r.commit(len);
-	logger->trace("RECV: {:02x}", fmt::join(buffers_begin(buf_r.data()), buffers_end(buf_r.data()), " "));
-
+//	logger->trace("RECV: {:02x}", fmt::join(buffers_begin(buf_r.data()), buffers_end(buf_r.data()), " "));
 
 	constexpr usz pkt_size = 4;
 
@@ -117,7 +119,7 @@ void Driver::recv_handle(error_code ec, usz len)
 				case MOTOR:
 				case GAP:
 				case ERR:
-					logger->trace("RX {:02x} {:3d}  {}", type, pkt_begin[1], std::distance(pkt_begin, pkt_end));
+					logger->trace("RX 0x{:02x} {:3x}", type, pkt_begin[1]);
 					on_packet(Type(type), pkt_begin[1]);
 				default: break;
 				}
