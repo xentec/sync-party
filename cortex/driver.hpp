@@ -50,8 +50,13 @@ private:
 
 	loggr logger;
 	serial_port dev;
-	steady_timer wd_feeder;
 	streambuf buf_r, buf_w;
+
+	enum ParseState
+	{
+		SYNC, DATA
+	} parse_state;
+	enum SYNC_BYTE { BEGIN = '[', END = ']' };
 
 	struct Req
 	{
@@ -60,9 +65,8 @@ private:
 	};
 	std::deque<Req> q;
 
-	enum ParseState
-	{
-		SYNC, DATA
-	} parse_state;
-	enum SYNC_BYTE { BEGIN = '[', END = ']' };
+	struct {
+		steady_timer feeder;
+		u8 curr;
+	} speed_ctrl;
 };
