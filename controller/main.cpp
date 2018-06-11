@@ -1,9 +1,10 @@
 
 #include "asio.hpp"
+#include "def.hpp"
+#include "echo.hpp"
+#include "logger.hpp"
 #include "types.hpp"
 #include "util.hpp"
-#include "logger.hpp"
-#include "echo.hpp"
 
 #include "controller.hpp"
 
@@ -32,7 +33,8 @@ int main()
 	logger->info("initialising controller...");
 	Controller ctrl(ioctx, Controller::Joystick, "/dev/input/js0");
 
-	auto mqtt_cl = mqtt::make_client(ioctx, "localhost", 4444);
+	logger->info("connecting to {}:{}", def::HOST, def::PORT);
+	auto mqtt_cl = mqtt::make_client(ioctx, def::HOST, def::PORT);
 	auto &cl = *mqtt_cl;
 	cl.set_client_id("ctrl");
 	cl.set_clean_session(true);
@@ -50,8 +52,8 @@ int main()
 		}
 	};
 
-	auto motor = [&](i32 speed) { forward("sp/motor", speed); };
-	auto steer = [&](i32 speed) { forward("sp/steer", speed); };
+	auto motor = [&](i32 v) { forward(def::MOTOR_SUB, v); };
+	auto steer = [&](i32 v) { forward(def::STEER_SUB, v); };
 
 	ctrl.on_axis = [&](u32, Controller::Axis num, i16 val)
 	{
@@ -70,8 +72,12 @@ int main()
 
 		i->second = val;
 
-		motor(map<i16>(input_state[Controller::RT2] - input_state[Controller::LT2], axis_min*2, axis_max*2, -1000, 1000));
-		steer(map<i32, i32>(input_state[Controller::LS_H], Controller::axis_min, Controller::axis_max, -900, 900));
+		motor(map<i16>(input_state[Controller::RT2] - input_state[Controller::LT2],
+					   axis_min*2, axis_max*2,
+					   def::MOTOR_SCALE.min, def::MOTOR_SCALE.max));
+		steer(map<i32, i32>(input_state[Controller::LS_H],
+							Controller::axis_min, Controller::axis_max,
+							def::STEER_SCALE.min, def::STEER_SCALE.max));
 	};
 
 	ctrl.on_key = [&](u32, u32 code, Controller::KeyState val)
@@ -90,12 +96,12 @@ int main()
 
 		i->second = val > 0;
 
-		motor(1000 * (input_state[KEY_W] - input_state[KEY_S]));
-		steer(9000 * (input_state[KEY_A] - input_state[KEY_D]));
+		motor(def::MOTOR_SCALE.max * (input_state[KEY_W] - input_state[KEY_S]));
+		steer(def::STEER_SCALE.max * (input_state[KEY_A] - input_state[KEY_D]));
 	};
 
 #ifdef MOCK_CLIENT
-	auto test_cl = mqtt::make_client(ioctx, "localhost", 4444);
+	auto test_cl = mqtt::make_client(ioctx, def::HOST, def::PORT);
 	{
 		auto &cl = *test_cl;
 		cl.set_client_id("drv-1"); // TODO: id spec
@@ -112,8 +118,8 @@ int main()
 			console->debug("connack: clean: {}, ret code: {}", sp, mqtt::connect_return_code_to_str(connack_return_code));
 			if (connack_return_code == mqtt::connect_return_code::accepted)
 			{
-				sub.steer = cl.subscribe("sp/steer", mqtt::qos::at_most_once);
-				sub.motor = cl.subscribe("sp/motor", mqtt::qos::at_most_once);
+				sub.motor = cl.subscribe(def::MOTOR_SUB, mqtt::qos::at_most_once);
+				sub.steer = cl.subscribe(def::STEER_SUB, mqtt::qos::at_most_once);
 			}
 			return true;
 		});
@@ -132,15 +138,10 @@ int main()
 
 	Echo echo(ioctx, 31337, NAME, std::chrono::seconds(10));
 
-
 	signal_set stop(ioctx, SIGINT, SIGTERM);
-	stop.async_wait([&](auto ec, int sig)
-	{
-		ioctx.stop();
-	});
+	stop.async_wait([&](auto ec, int sig) { ioctx.stop(); });
 
-
-	logger->debug("running...");
+	logger->info("running...");
 	ioctx.run();
 
 	return 0;

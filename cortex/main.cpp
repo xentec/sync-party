@@ -1,9 +1,10 @@
 
 #include "asio.hpp"
+#include "def.hpp"
+#include "echo.hpp"
+#include "logger.hpp"
 #include "types.hpp"
 #include "util.hpp"
-#include "logger.hpp"
-#include "echo.hpp"
 
 #include "driver.hpp"
 #include "steering.hpp"
@@ -52,49 +53,44 @@ int main()
 	auto steering = try_init<Steering>("steering", ioctx);
 
 	std::unordered_map<std::string, std::function<void(std::string)>> fn_map;
-	if(steering)
-	{
-		fn_map.emplace("sp/steer", [&](const std::string& str)
-			{
-			   static i16 steer_input_prev = 0;
-			   i16 steer = std::atoi(str.c_str());
-			   if(steer_input_prev != steer)
-			   {
-				   steer_input_prev = steer;
-				   steering->steer(steer);
-			   }
-			});
-	}
-
 	if(driver)
 	{
-		fn_map.emplace("sp/motor", [&](const std::string& str)
+		fn_map.emplace(def::MOTOR_SUB, [&](const std::string& str)
+		{
+			i32 input = std::atoi(str.c_str());
+
+			u8 speed = Driver::Speed::STOP;
+			if(input < 0) // NOTE: |[STOP, BACK_FULL]| != |[STOP, FORWARD_FULL]|
+				speed = map<u8>(input, 0, def::MOTOR_SCALE.min, Driver::Speed::STOP, Driver::Speed::BACK_FULL);
+			else if(input > 0)
+				speed = map<u8>(input, 0, def::MOTOR_SCALE.max, Driver::Speed::STOP, Driver::Speed::FORWARD_FULL);
+
+			static u8 speed_prev = Driver::Speed::STOP;
+			if(speed != speed_prev)
 			{
-				static i32 motor_input_prev = 0;
-				i32 input = std::atoi(str.c_str());
-				if(motor_input_prev != input)
-				{
-					motor_input_prev = input;
-
-					u8 speed = Driver::Speed::STOP;
-					if(input < 0)
-						speed = map<u8>(input, 0, -1000, Driver::Speed::STOP, Driver::Speed::BACK_FULL);
-					else
-						speed = map<u8>(input, 0, 1000, Driver::Speed::STOP, Driver::Speed::FORWARD_FULL);
-
-					static u8 speed_prev = Driver::Speed::STOP;
-					if(speed != speed_prev)
-					{
-						speed_prev = speed;
-						logger->debug("motor: {:02x}", speed);
-						driver->drive(speed);
-					}
-				}
-			});
+				speed_prev = speed;
+				logger->debug("HW: motor: {:02x}", speed);
+				driver->drive(speed);
+			}
+		});
+	}
+	if(steering)
+	{
+		fn_map.emplace(def::STEER_SUB, [&](const std::string& str)
+		{
+			static i16 steer_input_prev = 0;
+			i16 steer = std::atoi(str.c_str());
+			if(steer_input_prev != steer)
+			{
+				steer_input_prev = steer;
+				logger->debug("HW: steer: {:3}", steer);
+				steering->steer(steer);
+			}
+		});
 	}
 
-
-	auto mqtt_cl = mqtt::make_client(ioctx, "localhost", 4444);
+	logger->info("connecting to {}:{}", def::HOST, def::PORT);
+	auto mqtt_cl = mqtt::make_client(ioctx, def::HOST, def::PORT);
 	auto &cl = *mqtt_cl;
 
 	cl.set_client_id(NAME); // TODO: id spec
@@ -107,11 +103,14 @@ int main()
 	// Setup handlers
 	cl.set_connack_handler([&] (bool sp, std::uint8_t connack_return_code)
 	{
-		logger->debug("connack: clean: {}, ret code: {}", sp, mqtt::connect_return_code_to_str(connack_return_code));
-		if (connack_return_code == mqtt::connect_return_code::accepted)
+		auto rc_str = mqtt::connect_return_code_to_str(connack_return_code);
+		logger->debug("connack: clean: {}, ret code: {}", sp, rc_str);
+		if (connack_return_code != mqtt::connect_return_code::accepted)
+			logger->error("failed to connect: ret code {}", rc_str);
+		else
 		{
-			sub.steer = cl.subscribe("/sp/steer", mqtt::qos::at_most_once);
-			sub.motor = cl.subscribe("/sp/motor", mqtt::qos::at_most_once);
+			sub.motor = cl.subscribe(def::MOTOR_SUB, mqtt::qos::at_most_once);
+			sub.steer = cl.subscribe(def::STEER_SUB, mqtt::qos::at_most_once);
 		}
 		return true;
 	});
@@ -126,6 +125,7 @@ int main()
 		if(itr == fn_map.end())
 			return true;
 
+		logger->trace("data: {}[{}]: {}", topic_name, packet_id.get_value_or(-1), contents);
 		itr->second(contents);
 
 		return true;
@@ -133,17 +133,12 @@ int main()
 
 	cl.connect();
 
-	Echo echo(ioctx, 31338, NAME, std::chrono::seconds(10));
-
+	Echo echo(ioctx, 31337, NAME, std::chrono::seconds(10));
 
 	signal_set stop(ioctx, SIGINT, SIGTERM);
-	stop.async_wait([&](auto ec, int sig)
-	{
-		ioctx.stop();
-	});
+	stop.async_wait([&](auto, int) { ioctx.stop(); });
 
-
-	logger->debug("running...");
+	logger->info("running...");
 	ioctx.run();
 
 	return 0;
