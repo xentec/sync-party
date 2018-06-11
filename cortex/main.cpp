@@ -61,12 +61,12 @@ int main()
 
 			u8 speed = Driver::Speed::STOP;
 			if(input < 0) // NOTE: |[STOP, BACK_FULL]| != |[STOP, FORWARD_FULL]|
-				speed = map<u8>(input, 0, def::MOTOR_SCALE.min, Driver::Speed::STOP, Driver::Speed::BACK_FULL);
+				speed = map<u8>(-input, 0, def::MOTOR_SCALE.max, Driver::Speed::STOP, Driver::Speed::BACK_FULL);
 			else if(input > 0)
 				speed = map<u8>(input, 0, def::MOTOR_SCALE.max, Driver::Speed::STOP, Driver::Speed::FORWARD_FULL);
 
 			static u8 speed_prev = Driver::Speed::STOP;
-			if(speed != speed_prev)
+			if(speed_prev != speed)
 			{
 				speed_prev = speed;
 				logger->debug("HW: motor: {:02x}", speed);
