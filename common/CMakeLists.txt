@@ -6,6 +6,7 @@ project(sp-common CXX)
 set(SOURCES
 	asio.hpp
 	asio.cpp
+	def.hpp
 	echo.hpp
 	echo.cpp
 	logger.hpp
