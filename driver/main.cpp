@@ -1,3 +1,7 @@
+#ifndef __AVR_ATmega328P__
+#define __AVR_ATmega328P__ // IDE helper
+#endif
+
 #include <Arduino.h>
 #include <avr/wdt.h>
 
