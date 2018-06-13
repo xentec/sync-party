@@ -32,4 +32,4 @@ build() {
 }
 
 pkg_check cmake g++ avr-g++
-build driver cortex
+build driver cortex controller
