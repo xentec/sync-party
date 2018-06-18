@@ -28,7 +28,7 @@ u8 adjustspeed(u16 steer, u8 motor, int us, int cam){
     
     if(motor > 48){
         new_motor = motor + SPEEDDIFF;
-    }else if(motor < 48){
+    }else if((motor < 48 ) && ((motor - (SPEEDDIFF/2)) >=  16)){
         new_motor = motor - (SPEEDDIFF/2);
     }
 
