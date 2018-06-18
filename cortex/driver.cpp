@@ -138,9 +138,14 @@ void Driver::on_packet(Type type, u8 value)
 	while(!q.empty())
 	{
 		Req &r = q.front();
-		bool found = r.type == type;
+		bool found = r.type == type || type == Type::ERR;
 		if(found && r.cb)
-			r.cb({}, value);
+		{
+			if(type != Type::ERR)
+				r.cb({}, value);
+			else
+				r.cb(boost::system::errc::make_error_code(boost::system::errc::protocol_error), {});
+		}
 
 		q.pop_front();
 		if(!found)
