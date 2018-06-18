@@ -26,12 +26,18 @@ u8 adjustspeed(u16 steer, u8 motor, int us, int cam){
 
     }
     
+    if(motor > 48){
+        new_motor = motor + SPEEDDIFF;
+    }else if(motor < 48){
+        new_motor = motor - (SPEEDDIFF/2);
+    }
+
     if((std::abs(init_cam - cam)<= 10)){
-        return (new_motor + SPEEDDIFF); 
+        return new_motor; 
     }else if(init_cam < cam){
-        return (new_motor - 16 + SPEEDDIFF);
+        return (new_motor - 16);
     }else{
-        return (new_motor + 16 + SPEEDDIFF);
+        return (new_motor + 16);
     }
     
 }
