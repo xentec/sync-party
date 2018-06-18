@@ -3,6 +3,7 @@
 #include "def.hpp"
 #include "echo.hpp"
 #include "logger.hpp"
+#include "opts.hpp"
 #include "types.hpp"
 #include "util.hpp"
 
@@ -21,7 +22,7 @@
  * mqtt -> driver, steering
 */
 
-static std::string NAME = "drv-1";
+static std::string NAME = "sp-drv-0";
 
 loggr logger;
 
@@ -37,10 +38,18 @@ std::shared_ptr<T> try_init(const std::string& name, Args&& ...args)
 	return nullptr;
 }
 
-int main()
+struct
+{
+	CommonOpts common;
+} conf;
+
+int main(int argc, const char* argv[])
 {
 	slog::set_level(slog::level::trace);
 	slog::set_pattern("[%Y-%m-%d %H:%M:%S %L] %n: %v");
+
+	argh::parser opts(argc, argv);
+	parse_common_opts(opts, conf.common);
 
 	logger = slog::stdout_color_st("cortex");
 	logger->info("sp-cortex v0.1");
@@ -51,6 +60,13 @@ int main()
 
 	auto driver = try_init<Driver>("driver", ioctx, "/dev/ttyACM0");
 	auto steering = try_init<PWM>("steering", def::STEER_DC_PERIOD);
+
+	logger->info("connecting to {}:{}", conf.common.host, conf.common.port);
+	auto mqtt_cl = mqtt::make_client(ioctx, conf.common.host, conf.common.port);
+	auto &cl = *mqtt_cl;
+
+	cl.set_client_id(conf.common.name);
+	cl.set_clean_session(true);
 
 	std::unordered_map<std::string, std::function<void(std::string)>> fn_map;
 	if(driver)
@@ -94,13 +110,6 @@ int main()
 		});
 	}
 
-	logger->info("connecting to {}:{}", def::HOST, def::PORT);
-	auto mqtt_cl = mqtt::make_client(ioctx, def::HOST, def::PORT);
-	auto &cl = *mqtt_cl;
-
-	cl.set_client_id(NAME); // TODO: id spec
-	cl.set_clean_session(true);
-
 	struct {
 		u16 steer, motor;
 	} sub;
@@ -138,7 +147,9 @@ int main()
 
 	cl.connect();
 
-	Echo echo(ioctx, 31337, NAME, std::chrono::seconds(10));
+	std::shared_ptr<Echo> echo;
+	if(conf.common.echo_broadcast)
+		echo = std::make_shared<Echo>(ioctx, 31337, conf.common.name, std::chrono::seconds(10));
 
 	signal_set stop(ioctx, SIGINT, SIGTERM);
 	stop.async_wait([&](auto, int) { ioctx.stop(); });
