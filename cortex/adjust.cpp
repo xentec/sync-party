@@ -6,7 +6,7 @@
 #define MINMAXDEGREE 20
 #define SPEEDDIFF 16
 
-u8 adjustspeed(u16 steer, u8 motor, int us, int cam){
+u8 adjustspeed(u32 steer, u8 motor, int us, int cam){
     u8 new_motor;
     static i16 init_us = us;
     static i16 init_cam = cam;
@@ -42,8 +42,8 @@ u8 adjustspeed(u16 steer, u8 motor, int us, int cam){
     
 }
 
-u16 adjustdistance(u16 steer, u8 motor, int us){
-    u16 new_steer;
+u32 adjustdistance(u32 steer, u8 motor, int us){
+    u32 new_steer;
     static i16 init_us = us;
     float degree
 
