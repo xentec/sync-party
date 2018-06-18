@@ -192,7 +192,7 @@ void handle()
 			data = us_distance(data);
 			break;
 		case Type::ANALOG:
-			data = map(data, 0, 1023, 0, 255);
+			data = map(analogRead(data), 0, 1023, 0, 255);
 			break;
 		case Type::VERSION:
 			data = FW_VERSION;
