@@ -90,11 +90,10 @@ int main(int argc, const char* argv[])
 			{
 				speed_prev = speed;
 				if(global_pwm != 0){
-					speed = adjustspeed(global_pwm, speed, 300, 150);
-					logger->debug("HW: motor: {:02x}", speed);
+					logger->debug("HW: motor: {:02x}", adjustspeed(global_pwm, speed, 300, 150));
 					driver->drive(speed);
-				}else{
-					logger->debug("HW: motor: {:02x}", speed);
+				} else {
+					logger->debug("HW: motor: {:02x}", adjustspeed(global_pwm, speed, 300, 150));
 					driver->drive(speed);
 				}
 				global_speed = speed;
@@ -116,14 +115,13 @@ int main(int argc, const char* argv[])
 			{
 				pwm_prev = pwm;
 				if(global_speed != 0){
-					pwm = adjustdistance(pwm, global_speed, 300)
-					logger->debug("HW: steer: {:9}", pwm);
-					steering->set_duty_cycle(pwm);
+					logger->debug("HW: steer: {:9}", adjustdistance(pwm, global_speed, 300));
+					steering->set_duty_cycle(adjustdistance(pwm, global_speed, 300));
 				} else {
 					logger->debug("HW: steer: {:9}", pwm);
 					steering->set_duty_cycle(pwm);
 				}
-				u32 global_pwm = pwm;
+				global_pwm = pwm;
 				
 			}
 		});
