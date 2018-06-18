@@ -9,6 +9,14 @@ Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 	dev.set_option(boost::asio::serial_port::baud_rate(115200));
 	tcdrain(dev.native_handle());
 	recv_start();
+
+	version([this](auto ec, u8 v)
+	{
+		if(ec)
+			logger->warn("failed to fetch version: {}", ec.message());
+		else
+			logger->debug("firmware version {}", v);
+	});
 }
 
 void Driver::drive(u8 speed)
@@ -24,6 +32,24 @@ void Driver::drive(u8 speed)
 void Driver::gap(u8 sensor, std::function<void(error_code, u8)> callback)
 {
 	send(GAP, sensor, callback);
+}
+
+void Driver::analog(u8 pin, std::function<void (error_code, u8)> callback)
+{
+	send(ANALOG, pin, callback);
+}
+
+void Driver::version(std::function<void (error_code, u8)> callback)
+{
+	auto rcb = [this, callback](auto ec, u8 data)
+	{
+		if(ec)
+		{
+			callback(ec, {});
+			return;
+		}
+	};
+	send(VERSION, 0, rcb);
 }
 
 void Driver::wd_feed(error_code err)
@@ -119,6 +145,8 @@ void Driver::recv_handle(error_code ec, usz len)
 				case PING:
 				case MOTOR:
 				case GAP:
+				case ANALOG:
+				case VERSION:
 				case ERR:
 					logger->trace("RX 0x{:02x} {:3x}", type, pkt_begin[1]);
 					on_packet(Type(type), pkt_begin[1]);

@@ -16,9 +16,11 @@ struct Driver
 	enum Type : u8
 	{
 		PING  = 0x0,
-		MOTOR = 0x1,
-		GAP   = 0x2,
+		MOTOR,
+		GAP,
+		ANALOG,
 
+		VERSION = 0xFE,
 		ERR = 0xFF
 	};
 
@@ -35,6 +37,8 @@ struct Driver
 
 	void drive(u8 speed);
 	void gap(u8 sensor, std::function<void(error_code, u8 cm)> callback);
+	void analog(u8 pin, std::function<void(error_code, u8 v)> callback);
+	void version(std::function<void(error_code, u8 ver)> callback);
 
 private:
 	using buffer_iter = buffers_iterator<const_buffers_1>;

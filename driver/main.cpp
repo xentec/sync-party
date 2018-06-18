@@ -5,6 +5,8 @@
 #include <Arduino.h>
 #include <avr/wdt.h>
 
+#define FW_VERSION 2
+
 #define MOTOR_PIN 11
 #define WD_TIMEOUT_MS 200
 #define PING_PIN 7
@@ -72,7 +74,7 @@ namespace motor
 		{
 			ctrl = speed;
 			//enable the compare interrupt
-			TIMSK2=(1<<OCIE2A);
+			TIMSK2 = (1<<OCIE2A);
 		}
 	}
 
@@ -123,10 +125,11 @@ enum {
 enum Type
 {
 	PING  = 0x0,
-	MOTOR = 0x1,
-	ULTRA_SONIC = 0x2,
-	ANALOG = 0x3,
+	MOTOR,
+	ULTRA_SONIC,
+	ANALOG,
 
+	VERSION = 0xFE,
 	ERR = 0xFF
 };
 
@@ -189,7 +192,10 @@ void handle()
 			data = us_distance(data);
 			break;
 		case Type::ANALOG:
-			data = analogRead(data);
+			data = map(data, 0, 1023, 0, 255);
+			break;
+		case Type::VERSION:
+			data = FW_VERSION;
 			break;
 		default:
 			type = Type::ERR;
