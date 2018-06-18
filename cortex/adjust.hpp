@@ -6,5 +6,5 @@
 
 #include <cmath>
 
-u8 adjustspeed(u16 steer, u8 motor, int us, int cam);
-u16 adjustdistance(u16 steer, u8 motor, int us);
+u8 adjustspeed(u32 steer, u8 motor, int us, int cam);
+u32 adjustdistance(u32 steer, u8 motor, int us);
