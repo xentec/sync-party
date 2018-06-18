@@ -9,6 +9,8 @@ set(SOURCES
 	def.hpp
 	echo.hpp
 	echo.cpp
+	opts.hpp
+	opts.cpp
 	logger.hpp
 	types.hpp
 	util.hpp
@@ -23,6 +25,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC "-Wall")       # include all warni
 find_package(Threads REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 
+add_subdirectory(extern/argh EXCLUDE_FROM_ALL)
 add_subdirectory(extern/fmtlib EXCLUDE_FROM_ALL)
 add_subdirectory(extern/spdlog EXCLUDE_FROM_ALL)
 add_subdirectory(extern/mqtt_cpp EXCLUDE_FROM_ALL)
@@ -31,8 +34,9 @@ target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 
 target_link_libraries(${PROJECT_NAME}
 	PUBLIC
-		${CMAKE_THREAD_LIBS_INIT}
+	    ${CMAKE_THREAD_LIBS_INIT}
 		${Boost_LIBRARIES}
+		argh
 		fmt
 		spdlog
 		mqtt_cpp

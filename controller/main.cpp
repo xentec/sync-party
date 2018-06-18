@@ -3,6 +3,7 @@
 #include "def.hpp"
 #include "echo.hpp"
 #include "logger.hpp"
+#include "opts.hpp"
 #include "types.hpp"
 #include "util.hpp"
 
@@ -17,13 +18,22 @@
  * mqtt -> driver, steering
 */
 
-static std::string NAME = "sp-1";
+static const std::string NAME = "sp-ctrl";
+
+struct {
+	CommonOpts common;
+} conf;
 
 
-int main()
+int main(int argc, const char* argv[])
 {
 	slog::set_level(slog::level::trace);
 	slog::set_pattern("[%Y-%m-%d %H:%M:%S %L] %n: %v");
+
+	conf.common.name = NAME;
+
+	argh::parser opts(argc, argv);
+	parse_common_opts(opts, conf.common);
 
 	auto logger = slog::stdout_color_st("app");
 	logger->info("sp-controller v0.1");
@@ -31,13 +41,13 @@ int main()
 	io_context ioctx;
 
 	logger->info("initialising controller...");
-//	Controller ctrl(ioctx, Controller::Joystick, "/dev/input/js0");
-	Controller ctrl(ioctx, Controller::Keyboard, "/dev/input/event20");
+	Controller ctrl(ioctx, Controller::Joystick, "/dev/input/js0");
+//	Controller ctrl(ioctx, Controller::Keyboard, "/dev/input/event3");
 
-	logger->info("connecting to {}:{}", def::HOST, def::PORT);
-	auto mqtt_cl = mqtt::make_client(ioctx, def::HOST, def::PORT);
+	logger->info("connecting to {}:{}", conf.common.host, conf.common.port);
+	auto mqtt_cl = mqtt::make_client(ioctx, conf.common.host, conf.common.port);
 	auto &cl = *mqtt_cl;
-	cl.set_client_id("ctrl");
+	cl.set_client_id(conf.common.name);
 	cl.set_clean_session(true);
 	cl.connect();
 
@@ -97,10 +107,10 @@ int main()
 	};
 
 #ifdef MOCK_CLIENT
-	auto test_cl = mqtt::make_client(ioctx, def::HOST, def::PORT);
+	auto test_cl = mqtt::make_client(ioctx, conf.common.host, conf.common.port);
 	{
 		auto &cl = *test_cl;
-		cl.set_client_id("drv-1"); // TODO: id spec
+		cl.set_client_id(conf.common.name); // TODO: id spec
 		cl.set_clean_session(true);
 		cl.connect();
 
@@ -132,10 +142,12 @@ int main()
 	}
 #endif
 
-	Echo echo(ioctx, 31337, NAME, std::chrono::seconds(10));
+	std::shared_ptr<Echo> echo;
+	if(conf.common.echo_broadcast)
+		echo = std::make_shared<Echo>(ioctx, 31337, conf.common.name, std::chrono::seconds(10));
 
 	signal_set stop(ioctx, SIGINT, SIGTERM);
-	stop.async_wait([&](auto ec, int sig) { ioctx.stop(); });
+	stop.async_wait([&](auto, int) { ioctx.stop(); });
 
 	logger->info("running...");
 	ioctx.run();
