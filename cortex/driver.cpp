@@ -1,5 +1,8 @@
 #include "driver.hpp"
 
+constexpr auto TIMEOUT_TIME = std::chrono::milliseconds(10);
+constexpr auto TIMEOUT_RETRIES = 10;
+
 using namespace proto;
 
 namespace serial_opts
@@ -34,12 +37,13 @@ private:
 Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 	: logger(slog::stdout_color_st("driver"))
 	, dev(ioctx, dev_path)
+	, timer(ioctx)
+	, timeout_num(0)
 	, parse_state(SYNC)
 	, speed_ctrl{ steady_timer(ioctx), Speed::STOP}
 {
 	dev.set_option(serial_port::baud_rate(115200));
 	dev.set_option(serial_opts::hang_up(false));
-	recv_start();
 
 	version([this](auto ec, u8 v)
 	{
@@ -65,31 +69,31 @@ void Driver::drive(u8 speed)
 
 void Driver::gap(u8 sensor, std::function<void(error_code, u8)> callback)
 {
-	send(ULTRA_SONIC, sensor, callback);
+	send(Type::ULTRA_SONIC, sensor, callback);
 }
 
 void Driver::analog(u8 pin, std::function<void (error_code, u8)> callback)
 {
-	send(ANALOG, pin, callback);
+	send(Type::ANALOG, pin, callback);
 }
 
 void Driver::version(std::function<void (error_code, u8)> callback)
 {
-	send(VERSION, 0, callback);
+	send(Type::VERSION, 0, callback);
 }
 
 void Driver::wd_feed(error_code err)
 {
-	send(MOTOR, speed_ctrl.curr);
+	send(Type::MOTOR, speed_ctrl.curr);
 
 	if(err) return;
-	speed_ctrl.feeder.expires_after(std::chrono::milliseconds(100));
+	speed_ctrl.feeder.expires_after(TIMEOUT_TIME);
 	speed_ctrl.feeder.async_wait([this](auto ec){ wd_feed(ec); });
 }
 
 void Driver::send(Type type, u8 value, std::function<void(error_code, u8 cm)> cb)
 {
-	logger->trace("TX {:02X} {:3}", type, value);
+	logger->trace("TX {:02X} {:3}", u8(type), value);
 
 	std::ostream out(&buf_w);
 	out << '[' << char(type) << char(value) << ']';
@@ -110,29 +114,52 @@ void Driver::send_start()
 
 void Driver::send_handle(error_code ec, usz len)
 {
-	buf_w.consume(len);
-
 	if(ec && !q.empty())
 	{
 		Req &r = q.front();
 		r.cb(ec, {});
 		q.pop_front();
+		return;
 	}
+
+	recv_start();
 }
 
 void Driver::recv_start()
 {
 	dev.async_read_some(buf_r.prepare(32), [this](auto ec, usz len) { recv_handle(ec, len); });
+	timer.expires_from_now(std::chrono::milliseconds(100));
+	timer.async_wait([this](auto ec){ if(!ec) recv_handle(boost::system::errc::make_error_code(boost::system::errc::timed_out), 0); });
 }
 
 void Driver::recv_handle(error_code ec, usz len)
 {
 	if(ec)
 	{
+		if(ec.value() == boost::system::errc::operation_canceled) return;
+
+		if(ec.value() == boost::system::errc::timed_out)
+		{
+			timeout_num += 1;
+			if(timeout_num < TIMEOUT_RETRIES)
+			{
+				logger->debug("retry ({})", timeout_num);
+				send_start();
+				return;
+			}
+
+			if(!q.empty())
+			{
+				q.front().cb(ec, {});
+				q.pop_front();
+			}
+		}
+
 		logger->error("failed to read from driver: {}", ec.message());
 		return;
 	}
 
+	timer.cancel();
 	buf_r.commit(len);
 //	logger->trace("RECV: {:02x}", fmt::join(buffers_begin(buf_r.data()), buffers_end(buf_r.data()), " "));
 
@@ -167,9 +194,10 @@ void Driver::recv_handle(error_code ec, usz len)
 				pkt_end = std::next(tail);
 				on_packet(pkt_begin[0], pkt_begin[1]);
 				buf_r.consume(usz(std::distance(pkt_begin, pkt_end)));
+				buf_w.consume(pkt_size);
 			}
-		default:
 			parse_state = SYNC;
+			return;
 		}
 	} while(!stop);
 	recv_start();
@@ -177,12 +205,13 @@ void Driver::recv_handle(error_code ec, usz len)
 
 void Driver::on_packet(u8 type, u8 value)
 {
+	timeout_num = 0;
 	bool err = (type & ERR_BIT) > 0;
 	type &= ~ERR_BIT;
 
 	logger->trace("RX 0x{:02x} {:3x}", type, value);
 
-	if(type >= VERSION) return;
+	if(type >= u8(Type::_MAX)) return;
 
 	while(!q.empty())
 	{

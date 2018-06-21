@@ -6,16 +6,18 @@ namespace proto
 enum
 {
 	BYTE_SYNC = '[',
-	BYTE_END = ']',
+	BYTE_END  = ']',
 };
 
-enum Type
+enum class Type
 {
 	PING          = 0x0,
 	VERSION       = 0x1,
 	MOTOR         = 0x2,
 	ULTRA_SONIC   = 0x3,
 	ANALOG        = 0x4,
+
+	_MAX
 };
 
 
