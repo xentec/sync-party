@@ -32,4 +32,9 @@ target_link_libraries(${PROJECT_NAME}
 		stdc++fs
 )
 
+target_include_directories(${PROJECT_NAME}
+	PRIVATE
+		${PROJECT_SOURCE_DIR}/../driver
+)
+
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)

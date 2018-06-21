@@ -75,13 +75,13 @@ int main(int argc, const char* argv[])
 		{
 			i32 input = std::atoi(str.c_str());
 
-			u8 speed = Driver::Speed::STOP;
+			u8 speed = proto::Speed::STOP;
 			if(input < 0) // NOTE: |[STOP, BACK_FULL]| != |[STOP, FORWARD_FULL]|
-				speed = map<u8>(-input, 0, def::MOTOR_SCALE.max, Driver::Speed::STOP, Driver::Speed::BACK_FULL);
+				speed = map<u8>(-input, 0, def::MOTOR_SCALE.max, proto::Speed::STOP, proto::Speed::BACK_FULL);
 			else if(input > 0)
-				speed = map<u8>(input, 0, def::MOTOR_SCALE.max, Driver::Speed::STOP, Driver::Speed::FORWARD_FULL);
+				speed = map<u8>(input, 0, def::MOTOR_SCALE.max, proto::Speed::STOP, proto::Speed::FORWARD_FULL);
 
-			static u8 speed_prev = Driver::Speed::STOP;
+			static u8 speed_prev = proto::Speed::STOP;
 			if(speed_prev != speed)
 			{
 				speed_prev = speed;

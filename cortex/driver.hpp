@@ -4,6 +4,8 @@
 #include "types.hpp"
 #include "logger.hpp"
 
+#include "proto-def.hpp"
+
 #include <boost/asio/buffers_iterator.hpp>
 #include <boost/asio/serial_port.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -13,26 +15,6 @@
 
 struct Driver
 {
-	enum Type : u8
-	{
-		PING  = 0x0,
-		MOTOR,
-		GAP,
-		ANALOG,
-
-		VERSION = 0xFE,
-		ERR = 0xFF
-	};
-
-	enum Speed : u8
-	{
-//		BACK_FULL    = 0x10,
-		BACK_FULL    = 0x20,
-		STOP         = 0x30,
-		FORWARD_FULL = 0x60,
-//		FORWARD_FULL = 0x90,
-	};
-
 	Driver(io_context& ioctx, const char* dev_path);
 
 	void drive(u8 speed);
@@ -43,7 +25,7 @@ struct Driver
 private:
 	using buffer_iter = buffers_iterator<const_buffers_1>;
 
-	void send(Type type, u8 value, std::function<void(error_code, u8 cm)> cb = {});
+	void send(proto::Type type, u8 value, std::function<void(error_code, u8 cm)> cb = {});
 
 	void send_start();
 	void send_handle(error_code ec, usz len);
@@ -51,7 +33,7 @@ private:
 	void recv_start();
 	void recv_handle(error_code ec, usz len);
 
-	void on_packet(Type type, u8 value);
+	void on_packet(u8 type, u8 value);
 	void wd_feed(error_code err);
 
 	loggr logger;
@@ -62,7 +44,6 @@ private:
 	{
 		SYNC, DATA
 	} parse_state;
-	enum SYNC_BYTE { BEGIN = '[', END = ']' };
 
 	struct Req
 	{

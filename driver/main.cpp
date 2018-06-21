@@ -2,6 +2,8 @@
 #define __AVR_ATmega328P__ // IDE helper
 #endif
 
+#include "proto-def.hpp"
+
 #include <Arduino.h>
 #include <avr/wdt.h>
 
@@ -36,14 +38,7 @@ unsigned us_distance(int pin = PING_PIN)
 //###############
 namespace motor
 {
-	enum Control
-	{
-		BACK_FULL    = 0x10,
-		STOP         = 0x30,
-		FORWARD_FULL = 0x90,
-	};
-
-	byte ctrl = Control::STOP;
+	byte ctrl = proto::Speed::STOP;
 
 	void init()
 	{
@@ -64,11 +59,6 @@ namespace motor
 
 	void set_speed(byte speed)
 	{
-		if(speed < 0x10) speed = 0x10;
-		else if(speed > 0x90) speed = 0x90;
-
-		//change LED on the board when the motor is stopped
-		digitalWrite(13, speed != Control::STOP ? HIGH : LOW);
 
 		if(ctrl != speed)
 		{
@@ -76,11 +66,14 @@ namespace motor
 			//enable the compare interrupt
 			TIMSK2 = (1<<OCIE2A);
 		}
+
+		//change LED on the board when the motor is stopped
+		digitalWrite(13, speed != proto::Speed::STOP ? HIGH : LOW);
 	}
 
 	inline void stop()
 	{
-		set_speed(Control::STOP);
+		set_speed(proto::Speed::STOP);
 	}
 };
 
@@ -117,26 +110,8 @@ Watchdog wd;
 //######################
 namespace comm
 {
-enum {
-	BYTE_SYNC = '[',
-	BYTE_END = ']',
-};
 
-enum Type
-{
-	PING  = 0x0,
-	MOTOR,
-	ULTRA_SONIC,
-	ANALOG,
-
-	VERSION = 0xFE,
-	ERR = 0xFF
-};
-
-enum Error
-{
-	INVALID_ARG = 0x0,
-};
+using namespace proto;
 
 enum State
 {

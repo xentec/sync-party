@@ -7,7 +7,7 @@ project(sp-driver C CXX ASM)
 set(SP_PORT "/dev/ttyACM0" CACHE PATH "The path to serial port")
 
 # Sources
-set(${PROJECT_NAME}_SRCS  main.cpp)
+set(${PROJECT_NAME}_SRCS  main.cpp proto-def.hpp)
 
 # Board info
 set(${PROJECT_NAME}_BOARD uno)
