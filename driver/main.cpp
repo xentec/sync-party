@@ -155,7 +155,7 @@ void handle()
 		if(Serial.read() != BYTE_END)
 			return;
 
-		switch(type)
+		switch(Type(type))
 		{
 		case Type::PING:
 			wd.reset();
