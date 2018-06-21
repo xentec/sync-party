@@ -7,12 +7,12 @@
 #include <Arduino.h>
 #include <avr/wdt.h>
 
-#define FW_VERSION 2
+#define FW_VERSION 3
 
 #define MOTOR_PIN 11
-#define WD_TIMEOUT_MS 200
+#define PING_TIMEOUT_MS 200
 #define PING_PIN 7
-#define PING_TIMEOUT_MIS 2000
+#define US_TIMEOUT_MIS 2000
 
 
 // UltraSonic
@@ -29,7 +29,7 @@ unsigned us_distance(int pin = PING_PIN)
 
   // wait for echo
   pinMode(pin, INPUT);
-  unsigned long dur = pulseIn(pin, HIGH, PING_TIMEOUT_MIS); // 18500
+  unsigned long dur = pulseIn(pin, HIGH, US_TIMEOUT_MIS); // 18500
 
   return dur*100 / 29 / 2;
 }
@@ -89,7 +89,7 @@ ISR(TIMER2_COMPA_vect)
 //##########
 struct Watchdog
 {
-	void reset(unsigned long new_timeout = WD_TIMEOUT_MS)
+	void reset(unsigned long new_timeout = PING_TIMEOUT_MS)
 	{
 		timeout = millis() + new_timeout;
 	}
@@ -173,7 +173,7 @@ void handle()
 			data = FW_VERSION;
 			break;
 		default:
-			type = Type::ERR;
+			type |= ERR_BIT;
 			data = Error::INVALID_ARG;
 			break;
 		}

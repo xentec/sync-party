@@ -165,19 +165,7 @@ void Driver::recv_handle(error_code ec, usz len)
 			if(auto tail = std::next(pkt_begin, pkt_size-2); *tail == BYTE_END)
 			{
 				pkt_end = std::next(tail);
-				u8 type = u8(*pkt_begin);
-				switch(type)
-				{
-				case PING:
-				case MOTOR:
-				case GAP:
-				case ANALOG:
-				case VERSION:
-				case ERR:
-					logger->trace("RX 0x{:02x} {:3x}", type, pkt_begin[1]);
-					on_packet(Type(type), pkt_begin[1]);
-				default: break;
-				}
+				on_packet(pkt_begin[0], pkt_begin[1]);
 				buf_r.consume(usz(std::distance(pkt_begin, pkt_end)));
 			}
 		default:
@@ -189,6 +177,13 @@ void Driver::recv_handle(error_code ec, usz len)
 
 void Driver::on_packet(u8 type, u8 value)
 {
+	bool err = (type & ERR_BIT) > 0;
+	type &= ~ERR_BIT;
+
+	logger->trace("RX 0x{:02x} {:3x}", type, value);
+
+	if(type >= VERSION) return;
+
 	while(!q.empty())
 	{
 		Req &r = q.front();

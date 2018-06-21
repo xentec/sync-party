@@ -3,22 +3,23 @@
 namespace proto
 {
 
-enum {
+enum
+{
 	BYTE_SYNC = '[',
 	BYTE_END = ']',
 };
 
 enum Type
 {
-	PING  = 0x0,
-	MOTOR,
-	ULTRA_SONIC,
-	ANALOG,
-
-	VERSION = 0xFE,
-	ERR = 0xFF
+	PING          = 0x0,
+	VERSION       = 0x1,
+	MOTOR         = 0x2,
+	ULTRA_SONIC   = 0x3,
+	ANALOG        = 0x4,
 };
 
+
+const unsigned char ERR_BIT = (1 << 7);
 enum Error
 {
 	INVALID_ARG = 0x0,
