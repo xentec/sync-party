@@ -3,6 +3,7 @@
 #include "asio.hpp"
 #include "types.hpp"
 #include "logger.hpp"
+#include "def.hpp"
 
 #include <cmath>
 
