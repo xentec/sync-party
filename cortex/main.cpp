@@ -91,9 +91,9 @@ int main(int argc, const char* argv[])
 				speed_prev = speed;
 				if(global_pwm){
 					logger->debug("HW: motor: {:02x}", adjustspeed(global_pwm, speed, 300, 150));
-					driver->drive(adjustspeed(global_pwm, speed, 300, 150);
+					driver->drive(adjustspeed(global_pwm, speed, 300, 150));
 				} else {
-					logger->debug("HW: motor: {:02x}", speed));
+					logger->debug("HW: motor: {:02x}", speed);
 					driver->drive(speed);
 				}
 				global_speed = speed;
