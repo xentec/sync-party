@@ -1,13 +1,41 @@
 #include "driver.hpp"
 
+namespace serial_opts
+{
+struct hang_up
+{
+	explicit hang_up(bool val): value_(val) {}
+
+	unsigned int value() const { return value_; };
+
+	inline void store(termios& storage, boost::system::error_code&) const
+	{
+		if(value_)
+			storage.c_cflag |= HUPCL;
+		else
+			storage.c_cflag &= ~HUPCL;
+	}
+
+	inline void load(const termios& storage, boost::system::error_code&)
+	{
+		value_ = storage.c_cflag & HUPCL;
+	}
+
+private:
+	bool value_;
+};
+
+}
+
+
 Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 	: logger(slog::stdout_color_st("driver"))
 	, dev(ioctx, dev_path)
 	, parse_state(SYNC)
 	, speed_ctrl{ steady_timer(ioctx), Speed::STOP}
 {
-	dev.set_option(boost::asio::serial_port::baud_rate(115200));
-	tcdrain(dev.native_handle());
+	dev.set_option(serial_port::baud_rate(115200));
+	dev.set_option(serial_opts::hang_up(false));
 	recv_start();
 
 	version([this](auto ec, u8 v)
