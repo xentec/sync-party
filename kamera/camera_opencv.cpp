@@ -194,7 +194,7 @@ double SyncCamera::PatternMatching_scaled(int match_method, int iterations) {
     tracking_rectangle.width = input_template.cols/scale_best;
     tracking_rectangle.height = input_template.rows/scale_best;
     if(scale_best!=0) {
-        rectangle(tracking_image,tracking_rectangle,Scalar::all(0), 2, 8, 0 );  //draw rectangle into the original image
+        rectangle(tracking_image,tracking_rectangle,Scalar(0,0,255), 2, 8, 0 );  //draw rectangle into the original image
     }
     if(DEBUG) {
         cout << "best match:   " << matchVal_best << "location:  " << matchLoc_best;
@@ -292,14 +292,20 @@ int SyncCamera::TrackNext() {
     bool ok = tracker->update(tracking_image,tracking_rectangle);  //update tracker
     if(ok) { //if successful, return new x-coordinate
         if(DEBUG) { //draw rectangle and display image
-            rectangle(tracking_image,tracking_rectangle, Scalar::all(0), 2, 8, 0);
+            rectangle(tracking_image,tracking_rectangle, Scalar(0,0,255), 2, 8, 0);
             imshow("tracking",tracking_image);
             waitKey(1);
         }
         return_value = (int)(tracking_rectangle.x + tracking_rectangle.width/2);
         return return_value;
     }
-    else return -1;
+    else {
+        if(DEBUG) { //draw rectangle and display image
+            imshow("tracking",tracking_image);
+            waitKey(1);
+        }
+        return -1;
+    }
 }
 
 /**
