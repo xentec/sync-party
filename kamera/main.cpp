@@ -10,13 +10,13 @@ int main(int argc, char** argv)
     setbuf(stdout, NULL);
     int j = 0;
     // open the default camera unless otherwise specified
-    if(argc>1) { j=atoi(argv[1]); } else { j = 0; }
+    if(argc>1) { j=atoi(argv[1]); } else { j = 1; }
 
     SyncCamera cam(j);
 
     cam.set_resolution(320,240);
-    cam.set_matchval(0.9);
-   // cam.set_pattern("buch2.png");
+    cam.set_matchval(0.7);
+    cam.set_pattern("OTH_logo_small_2.png");
 
     pthread_t thread;
     camera_thread_data data;
@@ -30,7 +30,7 @@ int main(int argc, char** argv)
         if(return_value==-1) { cout << "Tracking error/pattern lost         \r"; }
         else if (return_value==-2) { cout << "Tracker not initialized.           \r";}
         else { cout << "Tracked coordinate:  " << return_value << "            \r";  }
-        usleep(16000); //sleep 3 ms
+        usleep(30000); //sleep 30 ms
     }
 
 
