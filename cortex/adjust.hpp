@@ -8,4 +8,4 @@
 #include <cmath>
 
 u8 adjustspeed(u32 steer, u8 motor, int us, int cam);
-u32 adjustdistance(u32 steer, u8 motor, int us);
+u32 adjustdistance(u32 steer, int us);
