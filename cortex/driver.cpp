@@ -1,7 +1,10 @@
 #include "driver.hpp"
 
+using namespace proto;
+
 namespace serial_opts
 {
+
 struct hang_up
 {
 	explicit hang_up(bool val): value_(val) {}
@@ -41,7 +44,10 @@ Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 	version([this](auto ec, u8 v)
 	{
 		if(ec)
-			logger->warn("failed to fetch version: {}", ec.message());
+		{
+			logger->error("failed to fetch version: {}", ec.message());
+			dev.close();
+		}
 		else
 			logger->debug("firmware version {}", v);
 	});
@@ -59,7 +65,7 @@ void Driver::drive(u8 speed)
 
 void Driver::gap(u8 sensor, std::function<void(error_code, u8)> callback)
 {
-	send(GAP, sensor, callback);
+	send(ULTRA_SONIC, sensor, callback);
 }
 
 void Driver::analog(u8 pin, std::function<void (error_code, u8)> callback)
@@ -69,15 +75,7 @@ void Driver::analog(u8 pin, std::function<void (error_code, u8)> callback)
 
 void Driver::version(std::function<void (error_code, u8)> callback)
 {
-	auto rcb = [this, callback](auto ec, u8 data)
-	{
-		if(ec)
-		{
-			callback(ec, {});
-			return;
-		}
-	};
-	send(VERSION, 0, rcb);
+	send(VERSION, 0, callback);
 }
 
 void Driver::wd_feed(error_code err)
@@ -91,14 +89,14 @@ void Driver::wd_feed(error_code err)
 
 void Driver::send(Type type, u8 value, std::function<void(error_code, u8 cm)> cb)
 {
-//	logger->trace("TX {:02X} {:3}", type, value);
+	logger->trace("TX {:02X} {:3}", type, value);
 
 	std::ostream out(&buf_w);
 	out << '[' << char(type) << char(value) << ']';
 	out.flush();
 
 	bool first = q.empty();
-	q.push_back({type, cb});
+	q.push_back({u8(type), cb});
 
 	if(first)
 		send_start();
@@ -149,7 +147,7 @@ void Driver::recv_handle(error_code ec, usz len)
 		{
 		case SYNC:
 		{
-			buffer_iter sync = std::find(pkt_begin, pkt_end, SYNC_BYTE::BEGIN);
+			buffer_iter sync = std::find(pkt_begin, pkt_end, BYTE_SYNC);
 			if(sync == pkt_end)
 			{
 				stop = true; break;
@@ -164,7 +162,7 @@ void Driver::recv_handle(error_code ec, usz len)
 			{
 				stop = true; break;
 			}
-			if(auto tail = std::next(pkt_begin, pkt_size-2); *tail == SYNC_BYTE::END)
+			if(auto tail = std::next(pkt_begin, pkt_size-2); *tail == BYTE_END)
 			{
 				pkt_end = std::next(tail);
 				u8 type = u8(*pkt_begin);
@@ -189,15 +187,15 @@ void Driver::recv_handle(error_code ec, usz len)
 	recv_start();
 }
 
-void Driver::on_packet(Type type, u8 value)
+void Driver::on_packet(u8 type, u8 value)
 {
 	while(!q.empty())
 	{
 		Req &r = q.front();
-		bool found = r.type == type || type == Type::ERR;
+		bool found = r.type == type;
 		if(found && r.cb)
 		{
-			if(type != Type::ERR)
+			if(!err)
 				r.cb({}, value);
 			else
 				r.cb(boost::system::errc::make_error_code(boost::system::errc::protocol_error), {});
