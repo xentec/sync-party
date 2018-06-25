@@ -20,7 +20,7 @@ void parse_common_opts(argh::parser &opts, CommonOpts &conf)
 	}
 
 	opts({"-i", "--id"}, conf.name) >> conf.name;
-	opts({"-j", "--host"}, def::HOST) >> conf.host;
+	opts({"-h", "--host"}, def::HOST) >> conf.host;
 	opts({"-p", "--port"}, def::PORT) >> conf.port;
 	conf.echo_broadcast = opts["--echo"];
 }
