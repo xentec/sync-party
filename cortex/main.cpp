@@ -6,6 +6,7 @@
 #include "opts.hpp"
 #include "types.hpp"
 #include "util.hpp"
+#include "adjust.hpp"
 
 #include "driver.hpp"
 #include "pwm.hpp"
@@ -24,6 +25,7 @@
 
 static std::string NAME = "sp-drv-0";
 
+u32 global_pwm = 0;
 loggr logger;
 
 template<class T, class ...Args>
@@ -69,6 +71,7 @@ int main(int argc, const char* argv[])
 	cl.set_clean_session(true);
 
 	std::unordered_map<std::string, std::function<void(std::string)>> fn_map;
+
 	if(driver)
 	{
 		fn_map.emplace(def::MOTOR_SUB, [&](const std::string& str)
@@ -77,7 +80,8 @@ int main(int argc, const char* argv[])
 
 			u8 speed = proto::Speed::STOP;
 			if(input < 0) // NOTE: |[STOP, BACK_FULL]| != |[STOP, FORWARD_FULL]|
-				speed = map<u8>(-input, 0, def::MOTOR_SCALE.max, proto::Speed::STOP, proto::Speed::BACK_FULL);
+				speed = map<u8>(input, def::MOTOR_SCALE.min,0, Driver::Speed::BACK_FULL, Driver::Speed::FORWARD_FULL);
+
 			else if(input > 0)
 				speed = map<u8>(input, 0, def::MOTOR_SCALE.max, proto::Speed::STOP, proto::Speed::FORWARD_FULL);
 
@@ -85,8 +89,15 @@ int main(int argc, const char* argv[])
 			if(speed_prev != speed)
 			{
 				speed_prev = speed;
-				logger->debug("HW: motor: {:02x}", speed);
-				driver->drive(speed);
+				if(global_pwm){
+					logger->debug("motor {:02x}", speed);
+					logger->debug("HW: motor: {:02x}", adjustspeed(global_pwm, speed, 50, 150));
+					driver->drive(adjustspeed(global_pwm, speed, 50, 150));
+				} else {
+					logger->debug("HW: motor: {:02x}", speed);
+					driver->drive(speed);
+				}
+				
 			}
 		});
 	}
@@ -104,8 +115,10 @@ int main(int argc, const char* argv[])
 			if(pwm_prev != pwm)
 			{
 				pwm_prev = pwm;
-				logger->debug("HW: steer: {:9}", pwm);
-				steering->set_duty_cycle(pwm);
+				
+				logger->debug("HW: steer: {:9}", adjustdistance(pwm, 50));
+				steering->set_duty_cycle(adjustdistance(pwm, 50));
+				global_pwm = pwm;
 			}
 		});
 	}

@@ -6,6 +6,8 @@ project(sp-cortex CXX)
 set(SOURCES
 	main.cpp
 
+	adjust.hpp
+	adjust.cpp
 	driver.hpp
 	driver.cpp
 	pwm.hpp
