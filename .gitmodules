@@ -14,4 +14,4 @@
 	url = https://github.com/gabime/spdlog
 [submodule "argh"]
 	path = extern/argh
-	url = https://github.com/adishavit/argh
+	url = https://github.com/xentec/argh
