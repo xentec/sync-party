@@ -30,6 +30,8 @@ struct Controller
 
 	Controller(io_context& ctx, Type type, const char* dev_path);
 
+	Type get_type() const;
+
 	std::function<void(u32 time, Axis num, i16 val)> on_axis;
 	std::function<void(u32 time, u32 keycode, KeyState val)> on_key;
 

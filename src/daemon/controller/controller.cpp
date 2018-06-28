@@ -24,6 +24,11 @@ Controller::Controller(io_context& ctx, Type type, const char* dev_path)
 	recv_start();
 }
 
+Controller::Type Controller::get_type() const
+{
+	return type;
+}
+
 void Controller::recv_start()
 {
 	sd.async_read_some(buf.prepare(64), recv_handle);

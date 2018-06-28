@@ -1,6 +1,6 @@
 #include "driver.hpp"
 
-constexpr auto TIMEOUT_TIME = std::chrono::milliseconds(10);
+constexpr auto TIMEOUT_TIME = std::chrono::milliseconds(100);
 constexpr auto TIMEOUT_RETRIES = 10;
 
 using namespace proto;
@@ -134,6 +134,8 @@ void Driver::recv_start()
 
 void Driver::recv_handle(error_code ec, usz len)
 {
+	timer.cancel();
+
 	if(ec)
 	{
 		if(ec.value() == boost::system::errc::operation_canceled) return;
@@ -159,7 +161,6 @@ void Driver::recv_handle(error_code ec, usz len)
 		return;
 	}
 
-	timer.cancel();
 	buf_r.commit(len);
 //	logger->trace("RECV: {:02x}", fmt::join(buffers_begin(buf_r.data()), buffers_end(buf_r.data()), " "));
 
