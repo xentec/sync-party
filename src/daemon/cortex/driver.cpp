@@ -186,11 +186,14 @@ void Driver::recv_handle(error_code ec, usz len)
 			parse_state = DATA;
 		}
 		case DATA:
+		{
 			if(buf_r.size() < pkt_size-1)
 			{
 				stop = true; break;
 			}
-			if(auto tail = std::next(pkt_begin, pkt_size-2); *tail == BYTE_END)
+
+			auto tail = std::next(pkt_begin, pkt_size-2);
+			if(*tail == BYTE_END)
 			{
 				pkt_end = std::next(tail);
 				on_packet(pkt_begin[0], pkt_begin[1]);
@@ -199,6 +202,7 @@ void Driver::recv_handle(error_code ec, usz len)
 			}
 			parse_state = SYNC;
 			return;
+		}
 		}
 	} while(!stop);
 	recv_start();
