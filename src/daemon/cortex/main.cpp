@@ -79,7 +79,7 @@ int main(int argc, const char* argv[])
 
 			u8 speed = proto::Speed::STOP;
 			if(input < 0) // NOTE: |[STOP, BACK_FULL]| != |[STOP, FORWARD_FULL]|
-				speed = map<u8>(-input, 0, def::MOTOR_SCALE.max, proto::Speed::STOP, proto::Speed::BACK_FULL);
+				speed = map<u8>(input, def::MOTOR_SCALE.min, 0, proto::Speed::BACK_FULL, proto::Speed::STOP);
 			else if(input > 0)
 				speed = map<u8>(input, 0, def::MOTOR_SCALE.max, proto::Speed::STOP, proto::Speed::FORWARD_FULL);
 
