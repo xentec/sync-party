@@ -42,7 +42,7 @@ int main(int argc, const char* argv[])
 
 	logger->info("initialising controller...");
 	Controller ctrl(ioctx, Controller::Joystick, "/dev/input/js0");
-//	Controller ctrl(ioctx, Controller::Keyboard, "/dev/input/event3");
+//	Controller ctrl(ioctx, Controller::Keyboard, "/dev/input/by-path/platform-i8042-serio-0-event-kbd");
 
 	logger->info("connecting to {}:{}", conf.common.host, conf.common.port);
 	auto mqtt_cl = mqtt::make_client(ioctx, conf.common.host, conf.common.port);

@@ -3,15 +3,15 @@
 SP_DIR="$(dirname "$(readlink -fn "${BASH_SOURCE[0]}")")"
 
 die() {
-	echo "$@"
+    echo "$@"
 	exit 1
 }
 
 pkg_check() {
-	local fail=0
+    local fail=0
 	for cmd; do
-		if ! command -v "$cmd" > /dev/null; then 
-			echo "$cmd is missing"
+	    if ! command -v "$cmd" > /dev/null; then
+		    echo "$cmd is missing"
 			fail=1
 		fi
 	done
@@ -19,17 +19,16 @@ pkg_check() {
 }
 
 build() {
-	for dir; do
+    for dir; do
 	(
-		set -e
-		cd "$SP_DIR/$dir"
+	    set -e
+		cd "$SP_DIR/src/$dir"
 		mkdir -p build && cd build;
 		cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$SP_DIR/bin"
-		make
+		make -j
 	)
 	done
-	
 }
 
-pkg_check cmake g++ avr-g++
-build driver cortex controller
+pkg_check cmake g++
+build daemon

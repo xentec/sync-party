@@ -41,7 +41,6 @@ private:
 	streambuf buf_r, buf_w;
 	steady_timer timer;
 	u8 timeout_num;
-	u8 timeout_max;
 
 	enum ParseState
 	{
