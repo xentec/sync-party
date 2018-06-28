@@ -22,12 +22,12 @@ u8 adjustspeed(u32 steer, u8 motor, int us, int cam){
     }else if(steer < def::STEER_DC_DEF){
 
         degree = (MINMAXDEGREE*(def::STEER_DC_DEF-steer))/((float)(def::STEER_DC_SCALE.max - def::STEER_DC_SCALE.min)/2);
-        new_motor = motor*(1+((us+CARWIDTH)*std::sin(degree*TORADIANS))/CARLENGTH);
+        new_motor = motor*((1+((us+CARWIDTH)*std::sin(degree*TORADIANS)))/CARLENGTH);
 
     }else if(steer > def::STEER_DC_DEF){
 
         degree = (-MINMAXDEGREE*(def::STEER_DC_DEF-steer))/((float)(def::STEER_DC_SCALE.max - def::STEER_DC_SCALE.min)/2);
-        new_motor = motor/((float)(1+((us+CARWIDTH)*std::sin(degree*TORADIANS))/CARLENGTH));
+        new_motor = motor*CARLENGTH/((float)(1+((us+CARWIDTH)*std::sin(degree*TORADIANS))));
 
     }
     if((std::abs(init_cam - cam)<= 5)){
