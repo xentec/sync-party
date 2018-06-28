@@ -78,7 +78,9 @@ int main(int argc, const char* argv[])
 
 		i->second = val;
 
-		motor(map<i16>(input_state[Controller::LT2] - input_state[Controller::RT2],
+		logger->trace("on_axis: {:2} - {:6}", i->first, i->second);
+
+		motor(map<i16>(input_state[Controller::RT2] - input_state[Controller::LT2],
 					   axis_min*2, axis_max*2,
 					   def::MOTOR_SCALE.min, def::MOTOR_SCALE.max));
 		steer(map<i32, i32>(input_state[Controller::LS_H],
@@ -101,6 +103,8 @@ int main(int argc, const char* argv[])
 			return;
 
 		i->second = val > 0;
+
+		logger->trace("on_key: {:2} - {:6}", i->first, i->second);
 
 		motor(def::MOTOR_SCALE.max / 4 * (input_state[KEY_S] - input_state[KEY_W]));
 		steer(def::STEER_SCALE.max * (input_state[KEY_D] - input_state[KEY_A]));

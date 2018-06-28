@@ -50,7 +50,7 @@ void Controller::recv_handle_js(error_code ec, usz len)
 		auto &ev = *static_cast<const js_event*>(buf.data().data());
 		if(on_axis && (ev.type & JS_EVENT_AXIS))
 		{
-			logger->trace("on_axis: {:4} - {} {:6}", ev.time % 1000, ev.number, ev.value);
+//			logger->trace("on_axis: {:4} - {} {:6}", ev.time % 1000, ev.number, ev.value);
 			on_axis(ev.time, Axis(ev.number), ev.value);
 		}
 
@@ -76,7 +76,7 @@ void Controller::recv_handle_kb(error_code ec, usz len)
 		if(on_key && (ev.type == EV_KEY))
 		{
 			u32 time = ev.time.tv_sec * 1000 + ev.time.tv_usec / 1000;
-			logger->trace("on_key: {:4} - {:3} {}", time % 1000, ev.code, ev.value);
+//			logger->trace("on_key: {:4} - {:3} {}", time % 1000, ev.code, ev.value);
 			on_key(time, ev.code, KeyState(ev.value));
 		}
 
