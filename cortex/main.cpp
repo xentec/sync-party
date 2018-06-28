@@ -118,8 +118,8 @@ int main(int argc, const char* argv[])
 				
 				logger->debug("HW: steer: {:9}", adjustdistance(pwm, 50));
 				steering->set_duty_cycle(adjustdistance(pwm, 50));
-				global_pwm = pwm;
 			}
+			global_pwm = pwm;
 		});
 	}
 
