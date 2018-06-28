@@ -48,8 +48,10 @@ int main(int argc, const char* argv[])
 	slog::set_level(slog::level::trace);
 	slog::set_pattern("[%Y-%m-%d %H:%M:%S %L] %n: %v");
 
+	conf.common.name = NAME;
+
 	argh::parser opts(argc, argv);
-	parse_common_opts(opts, conf.common);
+	parse_common_opts(opts, conf.common, false);
 
 	logger = slog::stdout_color_st("cortex");
 	logger->info("sp-cortex v0.1");
@@ -61,7 +63,7 @@ int main(int argc, const char* argv[])
 	auto driver = try_init<Driver>("driver", ioctx, "/dev/ttyACM0");
 	auto steering = try_init<PWM>("steering", def::STEER_DC_PERIOD);
 
-	logger->info("connecting to {}:{}", conf.common.host, conf.common.port);
+	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
 	auto mqtt_cl = mqtt::make_client(ioctx, conf.common.host, conf.common.port);
 	auto &cl = *mqtt_cl;
 

@@ -8,4 +8,4 @@ struct CommonOpts {
 	bool echo_broadcast;
 };
 
-void parse_common_opts(argh::parser& p, CommonOpts& opts);
+void parse_common_opts(argh::parser& p, CommonOpts& opts, bool use_hostname = true);
