@@ -1,15 +1,18 @@
 #pragma once
 
+#include <stdint.h>
+#include <stddef.h>
+
 namespace proto
 {
 
-enum
+enum Sync : uint8_t
 {
 	BYTE_SYNC = '[',
 	BYTE_END  = ']',
 };
 
-enum class Type
+enum class Type : uint8_t
 {
 	PING          = 0x0,
 	VERSION       = 0x1,
@@ -20,15 +23,24 @@ enum class Type
 	_MAX
 };
 
+struct Packet
+{
+	Sync begin;
+	Type type;
+	uint8_t data;
+	Sync end;
+};
 
-const unsigned char ERR_BIT = (1 << 7);
+constexpr size_t PKT_SIZE = sizeof (Packet);
+
+const uint8_t ERR_BIT = (1 << 7);
 enum Error
 {
 	INVALID_ARG = 0x0,
 };
 
 
-enum Speed
+enum Speed : uint8_t
 {
 //	BACK_FULL    = 0x10,
 	BACK_FULL    = 0x20,

@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 
-#define FW_VERSION 3
+#define FW_VERSION 4
 
 #define MOTOR_PIN 11
 #define PING_TIMEOUT_MS 200
@@ -61,16 +61,15 @@ namespace motor
 
 	void set_speed(byte speed)
 	{
-
 		if(ctrl != speed)
 		{
 			ctrl = speed;
 			//enable the compare interrupt
 			TIMSK2 = (1<<OCIE2A);
-		}
 
-		//change LED on the board when the motor is stopped
-		digitalWrite(13, speed != proto::Speed::STOP ? HIGH : LOW);
+			//change LED on the board when the motor is stopped
+			digitalWrite(13, speed != proto::Speed::STOP ? HIGH : LOW);
+		}
 	}
 
 	inline void stop()
@@ -121,15 +120,6 @@ enum State
 } state {};
 
 
-void send(byte type, byte data)
-{
-	Serial.write(BYTE_SYNC);
-	Serial.write(type);
-	Serial.write(data);
-	Serial.write(BYTE_END);
-
-}
-
 void handle()
 {
 	// [<type><param>]
@@ -147,7 +137,7 @@ void handle()
 
 		state = State::DATA;
 	case State::DATA:
-		if(Serial.available() < 3)
+		if(uint32_t(Serial.available()) < PKT_SIZE - 1)
 			return;
 
 		state = State::SYNC;
@@ -157,11 +147,14 @@ void handle()
 		if(Serial.read() != BYTE_END)
 			return;
 
+		// jitter test
+//		delay(random(20, 120));
+
 		switch(Type(type))
 		{
-		case Type::PING:        wd.reset(); break;
+		case Type::PING:        break;
 		case Type::VERSION:     data = FW_VERSION; break;
-		case Type::MOTOR:       motor::set_speed(data); break;
+		case Type::MOTOR:       motor::set_speed(data); wd.reset(); break;
 		case Type::ULTRA_SONIC: data = us_distance(data); break;
 		case Type::ANALOG:      data = map(analogRead(data), 0, 1023, 0, 255); break;
 		default:
@@ -170,7 +163,10 @@ void handle()
 			break;
 		}
 
-		send(type, data);
+		Serial.write(uint8_t(BYTE_SYNC));
+		Serial.write(type);
+		Serial.write(data);
+		Serial.write(uint8_t(BYTE_END));
 		break;
 	default: break;
 	}
@@ -186,6 +182,8 @@ void setup()
 	wd.reset();
 	Serial.begin(115200);
 	wdt_enable(WDTO_120MS);
+
+	randomSeed(analogRead(0));
 }
 
 void loop()
@@ -194,9 +192,7 @@ void loop()
 		comm::handle();
 
 	if(wd.check())
-	{
 		motor::stop();
-//		comm::send(comm::Type::MOTOR, motor::Control::STOP);
-	}
+
 	wdt_reset();
 }
