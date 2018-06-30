@@ -33,6 +33,9 @@ private:
 	void recv_start();
 	void recv_handle(error_code ec, usz len);
 
+	void timeout_start();
+	void timeout_handle();
+
 	void on_packet(u8 type, u8 value);
 	void wd_feed(error_code err);
 

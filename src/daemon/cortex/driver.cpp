@@ -40,10 +40,11 @@ Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 	, timer(ioctx)
 	, timeout_num(0)
 	, parse_state(SYNC)
-	, speed_ctrl{ steady_timer(ioctx), Speed::STOP}
+	, speed_ctrl{ steady_timer(ioctx), Speed::STOP }
 {
 	dev.set_option(serial_port::baud_rate(115200));
 	dev.set_option(serial_opts::hang_up(false));
+	recv_start();
 
 	version([this](auto ec, u8 v)
 	{
@@ -104,16 +105,19 @@ void Driver::send(Type type, u8 value, std::function<void(error_code, u8 cm)> cb
 
 	if(first)
 		send_start();
+	else
+		logger->trace("Q: {}", q.size());
 }
 
 void Driver::send_start()
 {
-//	logger->trace("SEND: {:02x}", fmt::join(buffers_begin(buf_w.data()), buffers_end(buf_w.data()), " "));
+//	logger->trace("SEND START: {:02x}", fmt::join(buffers_begin(buf_w.data()), buffers_end(buf_w.data()), " "));
 	dev.async_write_some(buf_w.data(), [this](auto ec, usz len){ send_handle(ec, len); });
 }
 
 void Driver::send_handle(error_code ec, usz len)
 {
+//	logger->trace("SEND END ({})", len);
 	if(ec && !q.empty())
 	{
 		Req &r = q.front();
@@ -122,49 +126,52 @@ void Driver::send_handle(error_code ec, usz len)
 		return;
 	}
 
-	recv_start();
+	timeout_start();
+}
+
+void Driver::timeout_start()
+{
+	timer.expires_from_now(TIMEOUT_TIME);
+	timer.async_wait([this](auto ec)
+	{
+		if(ec) return;
+
+		timeout_handle();
+	});
+}
+
+void Driver::timeout_handle()
+{
+	timeout_num += 1;
+	if(timeout_num < TIMEOUT_RETRIES)
+	{
+		logger->trace("retry ({})", timeout_num);
+		send_start();
+	} else if(!q.empty())
+	{
+		q.front().cb(boost::system::errc::make_error_code(boost::system::errc::timed_out), {});
+		q.pop_front();
+	}
 }
 
 void Driver::recv_start()
 {
+//	logger->trace("RECV START");
 	dev.async_read_some(buf_r.prepare(32), [this](auto ec, usz len) { recv_handle(ec, len); });
-	timer.expires_from_now(std::chrono::milliseconds(100));
-	timer.async_wait([this](auto ec){ if(!ec) recv_handle(boost::system::errc::make_error_code(boost::system::errc::timed_out), 0); });
 }
 
 void Driver::recv_handle(error_code ec, usz len)
 {
-	timer.cancel();
-
 	if(ec)
 	{
-		if(ec.value() == boost::system::errc::operation_canceled) return;
-
-		if(ec.value() == boost::system::errc::timed_out)
-		{
-			timeout_num += 1;
-			if(timeout_num < TIMEOUT_RETRIES)
-			{
-				logger->debug("retry ({})", timeout_num);
-				send_start();
-				return;
-			}
-
-			if(!q.empty())
-			{
-				q.front().cb(ec, {});
-				q.pop_front();
-			}
-		}
-
-		logger->error("failed to read from driver: {}", ec.message());
+		if(ec.value() != boost::system::errc::operation_canceled)
+			logger->error("failed to read from driver: {}", ec.message());
 		return;
 	}
 
 	buf_r.commit(len);
-//	logger->trace("RECV: {:02x}", fmt::join(buffers_begin(buf_r.data()), buffers_end(buf_r.data()), " "));
+//	logger->trace("RECV END: {:02x}", fmt::join(buffers_begin(buf_r.data()), buffers_end(buf_r.data()), " "));
 
-	constexpr usz pkt_size = 4;
 
 	bool stop = false;
 	do {
@@ -187,30 +194,36 @@ void Driver::recv_handle(error_code ec, usz len)
 		}
 		case DATA:
 		{
-			if(buf_r.size() < pkt_size-1)
+			if(buf_r.size() < PKT_SIZE-1)
 			{
 				stop = true; break;
 			}
 
-			auto tail = std::next(pkt_begin, pkt_size-2);
+			auto tail = std::next(pkt_begin, PKT_SIZE-2);
 			if(*tail == BYTE_END)
 			{
 				pkt_end = std::next(tail);
 				on_packet(pkt_begin[0], pkt_begin[1]);
 				buf_r.consume(usz(std::distance(pkt_begin, pkt_end)));
-				buf_w.consume(pkt_size);
+				buf_w.consume(PKT_SIZE);
 			}
-			parse_state = SYNC;
-			return;
 		}
+		default:
+			parse_state = SYNC;
 		}
 	} while(!stop);
+
+	if(q.size())
+		timeout_start();
+
 	recv_start();
 }
 
 void Driver::on_packet(u8 type, u8 value)
 {
+	timer.cancel();
 	timeout_num = 0;
+
 	bool err = (type & ERR_BIT) > 0;
 	type &= ~ERR_BIT;
 
@@ -232,9 +245,8 @@ void Driver::on_packet(u8 type, u8 value)
 
 		q.pop_front();
 		if(!found)
-			logger->warn("tx/rx buffer async");
+			logger->warn("tx/rx async");
 		else
 			break;
 	}
-	if(q.size()) send_start();
 }
