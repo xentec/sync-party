@@ -60,6 +60,11 @@ Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 
 void Driver::drive(u8 speed)
 {
+	if(speed > Speed::FORWARD_FULL)
+		speed = Speed::FORWARD_FULL;
+	if(speed < Speed::BACK_FULL)
+		speed = Speed::BACK_FULL;
+
 	speed_ctrl.curr = speed;
 
 	if(speed == Speed::STOP)
