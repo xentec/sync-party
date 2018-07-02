@@ -186,14 +186,14 @@ int main(int argc, const char* argv[])
 			logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm, pwm_corr, control_state.gap);
 			if(steering)
 				steering->set_duty_cycle(pwm_corr);
-	
-			if(conf.is_slave) {
+
+			if(conf.is_slave && control_state.speed != proto::Speed::STOP)
+			{
 				auto speed_corr = adjust_speed(control_state.steer_pwm, control_state.speed, control_state.gap, 0);
+				logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", control_state.speed, speed_corr, control_state.gap);
 
-			logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", control_state.speed, speed_corr, control_state.gap);
-
-			if(driver)
-				driver->drive(speed_corr);
+				if(driver)
+					driver->drive(speed_corr);
 			}
 		}
 	});
