@@ -158,6 +158,11 @@ nCrunchTemp_*
 *.mm.*
 AutoTest.Net/
 
+# Latex
+*.aux
+*.log
+*.out
+
 # Web workbench (sass)
 .sass-cache/
 

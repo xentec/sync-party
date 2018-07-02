@@ -7,6 +7,7 @@
 #include "types.hpp"
 #include "util.hpp"
 
+#include "adjust.hpp"
 #include "driver.hpp"
 #include "pwm.hpp"
 
@@ -46,6 +47,8 @@ std::shared_ptr<T> try_init(const std::string& name, Args&& ...args)
 struct
 {
 	CommonOpts common;
+	bool is_slave;
+	u32 gap_test = 0;
 } conf;
 
 int main(int argc, const char* argv[])
@@ -57,6 +60,9 @@ int main(int argc, const char* argv[])
 
 	argh::parser opts(argc, argv);
 	parse_common_opts(opts, conf.common, false);
+
+	conf.is_slave = opts["-S"];
+	opts({"-g", "--gap"}, conf.gap_test) >> conf.gap_test;
 
 	logger = slog::stdout_color_st("cortex");
 	logger->info("sp-cortex v0.1");
@@ -106,48 +112,97 @@ int main(int argc, const char* argv[])
 	cl.set_client_id(conf.common.name);
 	cl.set_clean_session(true);
 
+	struct {
+		u32 steer_pwm = def::STEER_DC_DEF;
+		u8 speed = proto::Speed::STOP;
+		u8 gap = conf.gap_test;
+	} control_state;
+
 	std::unordered_map<std::string, std::function<void(std::string)>> fn_map;
-	if(driver)
+
+
+	fn_map.emplace(def::MOTOR_SUB, [&](const std::string& str)
 	{
-		fn_map.emplace(def::MOTOR_SUB, [&](const std::string& str)
+		i32 input = std::atoi(str.c_str());
+
+		u8 speed = proto::Speed::STOP;
+		if(input < 0) // NOTE: |[STOP, BACK_FULL]| != |[STOP, FORWARD_FULL]|
+			speed = map<u8>(input, def::MOTOR_SCALE.min, 0, proto::Speed::BACK_FULL, proto::Speed::STOP);
+		else if(input > 0)
+			speed = map<u8>(input, 0, def::MOTOR_SCALE.max, proto::Speed::STOP, proto::Speed::FORWARD_FULL);
+
+		if(control_state.speed != speed)
 		{
-			i32 input = std::atoi(str.c_str());
+			auto speed_corr = control_state.speed = speed;
 
-			u8 speed = proto::Speed::STOP;
-			if(input < 0) // NOTE: |[STOP, BACK_FULL]| != |[STOP, FORWARD_FULL]|
-				speed = map<u8>(input, def::MOTOR_SCALE.min, 0, proto::Speed::BACK_FULL, proto::Speed::STOP);
-			else if(input > 0)
-				speed = map<u8>(input, 0, def::MOTOR_SCALE.max, proto::Speed::STOP, proto::Speed::FORWARD_FULL);
+			if(conf.is_slave)
+				speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, 0);
 
+<<<<<<< HEAD
 			static u8 speed_prev = proto::Speed::STOP;
 			if(speed_prev != speed)
 			{
 				speed_prev = speed;
                                 logger->info("Camera value: {}",return_value);
 				logger->debug("HW: motor: {:02x}", speed);
+=======
+			logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, control_state.gap);
+
+			if(driver)
+>>>>>>> master
 				driver->drive(speed);
-			}
+		}
+	});
+
+	if(driver && conf.is_slave)
+	{
+		auto gap_timer = std::make_shared<recur_timer>(ioctx);
+		gap_timer->start(std::chrono::milliseconds(100), [&, gap_timer](auto ec)
+		{
+			if(ec) return;
+
+			static u8 pin = 7;
+
+			pin = pin == 8 ? 7 : 8;
+
+			driver->gap(pin, [&](auto ec, u8 cm)
+			{
+				if(ec)
+					logger->debug("GAP ERR {} ", ec.message());
+				else
+				{
+					control_state.gap = cm;
+				}
+			});
 		});
 	}
+
+
 	if(steering)
 	{
 		steering->set_duty_cycle(def::STEER_DC_DEF);
 		steering->enable(true);
-		fn_map.emplace(def::STEER_SUB, [&](const std::string& str)
-		{
-			u32 pwm = map(std::atoi(str.c_str()),
-						  def::STEER_SCALE.min, def::STEER_SCALE.max,
-						  def::STEER_DC_SCALE.min, def::STEER_DC_SCALE.max);
-
-			static u32 pwm_prev = 0;
-			if(pwm_prev != pwm)
-			{
-				pwm_prev = pwm;
-				logger->debug("HW: steer: {:9}", pwm);
-				steering->set_duty_cycle(pwm);
-			}
-		});
 	}
+
+	fn_map.emplace(def::STEER_SUB, [&](const std::string& str)
+	{
+		u32 pwm = map(std::atoi(str.c_str()),
+					  def::STEER_SCALE.min, def::STEER_SCALE.max,
+					  def::STEER_DC_SCALE.min, def::STEER_DC_SCALE.max);
+
+		if(control_state.steer_pwm != pwm)
+		{
+			auto pwm_corr = control_state.steer_pwm = pwm;
+			if(conf.is_slave)
+				pwm_corr = adjust_steer(pwm, control_state.gap);
+
+			logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm, pwm_corr, control_state.gap);
+			if(steering)
+				steering->set_duty_cycle(pwm_corr);
+		}
+	});
+
+
 
 	struct {
 		u16 steer, motor;
@@ -178,7 +233,7 @@ int main(int argc, const char* argv[])
 		if(itr == fn_map.end())
 			return true;
 
-		logger->trace("data: {}[{}]: {}", topic_name, packet_id.get_value_or(-1), contents);
+		logger->trace("data: {}: {}", topic_name, contents);
 		itr->second(contents);
 
 		return true;
