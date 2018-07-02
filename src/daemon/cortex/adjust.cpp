@@ -36,7 +36,10 @@ u8 adjust_speed(u32 steer, u8 speed, u8 gap_cm, int cam)
 	}
 
 	static i16 init_cam = cam;
-	if(init_cam < cam)
+	if ((std::abs(init_cam - cam) <= 3)) {
+			new_speed = Werte[i].speed;
+	}
+	else if(init_cam < cam)
 		new_speed -= 16;
 	else
 		new_speed += 16;
