@@ -8,18 +8,23 @@ using namespace cv;
 using namespace zbar;
 
 void SyncCamera::start_sync_camera(std::atomic<int> *return_value) {
-	double matchvalue = 0.0;
+    double matchvalue = 0.0;
 	for(;;) {
-		while(matchvalue <= 0)
+        matchvalue = 0.0;
+        while(matchvalue == 0)
 		{
 			matchvalue = pattern_matching_scaled(CV_TM_SQDIFF_NORMED); //look for pattern
-			if (matchvalue>0) break; //pattern found, break loop
+            if (matchvalue > 0) {
+                return_value->store(0);
+                initialize_tracker("KCF");
+                break; //pattern found, break loop
+            }
 			flush_frames(1); //if no pattern was detected, keep camera busy for 1 second
 		}
 
-		initialize_tracker("KCF");
 
-		while (return_value->load() > 0)
+
+        while (return_value->load() >= 0)
 		{
 			return_value->store(track_next());
 		}
@@ -293,16 +298,18 @@ int SyncCamera::pattern_matching(int match_method) {
  */
 
 int SyncCamera::initialize_tracker(std::string tracker_type) {
-	if(tracker_type=="MEDIANFLOW") {
-		tracker = TrackerMedianFlow::create();
-	}
-	else if(tracker_type=="KCF") {
-		tracker = TrackerKCF::create();
-	} else return -1;
-	//initialize tracker
-	tracker->init(tracking_image,tracking_rectangle);
-	tracker_is_initialized = 1;
-	return 0;
+    if(tracker_is_initialized) {
+        if(tracker_type=="MEDIANFLOW") {
+            tracker = TrackerMedianFlow::create();
+        }
+        else if(tracker_type=="KCF") {
+            tracker = TrackerKCF::create();
+        } else return -1;
+    }
+    //initialize tracker
+    tracker->init(tracking_image,tracking_rectangle);
+    tracker_is_initialized = 1;
+    return 0;
 }
 
 /**
