@@ -1,6 +1,7 @@
 #include "camera_opencv.hpp"
 
 #include <zbar.h>
+#include <unistd.h>
 
 
 using namespace cv;
@@ -77,11 +78,17 @@ void SyncCamera::continuous_scan_barcode(std::atomic<int> *return_barcode, int r
 }
 
 
-SyncCamera::SyncCamera(int camera_number, std::string pattern_path)
-	: cap(camera_number)
+SyncCamera::SyncCamera(const std::string &cam_path, const std::string &pattern_path)
+	: cap(cam_path)
 	, input_template(cv::imread(pattern_path, cv::IMREAD_COLOR))
 	, cam_fps(cap.get(CAP_PROP_FPS))
-{}
+{
+	if(!cap.isOpened())
+	{
+		access(cam_path.c_str(), R_OK);
+		throw std::system_error(std::error_code(errno, std::system_category()));
+	}
+}
 
 SyncCamera::~SyncCamera() {
 	cap.release();

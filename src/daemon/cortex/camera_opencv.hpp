@@ -18,7 +18,7 @@ class SyncCamera {
 	double matchval = 0.7;
 
 public:
-	SyncCamera(int camera_number, std::string pattern_path);
+	SyncCamera(const std::string& cam_path, const std::string& pattern_path);
 	~SyncCamera();
 	void set_resolution(u32 width, u32 height);
 	void set_pattern(cv::String pattern);

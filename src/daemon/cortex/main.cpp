@@ -29,10 +29,10 @@ static std::string NAME = "sp-drv-0";
 loggr logger;
 
 template<class T, class ...Args>
-std::shared_ptr<T> try_init(const std::string& name, Args&& ...args)
+std::unique_ptr<T> try_init(const std::string& name, Args&& ...args)
 {
 	try {
-		return std::make_shared<T>(args...);
+		return std::make_unique<T>(args...);
 	} catch(std::runtime_error& ex)
 	{
 		logger->error("failed to init {}: {}", name, ex.what());
@@ -77,47 +77,46 @@ int main(int argc, const char* argv[])
 	auto steering = try_init<PWM>("steering", def::STEER_DC_PERIOD);
 
 	struct {
-		std::unique_ptr<SyncCamera> driver;
-		std::thread thread;
-		std::atomic<int> value;
-		int center = 0;
-	} cam;
-
-	if(conf.is_slave && 0> access(conf.cam.pattern_path.c_str(), R_OK))
-		logger->warn("cam pattern not found at {}: {}", conf.cam.pattern_path, strerror(errno));
-	else
-	{
-		cam.driver = std::make_unique<SyncCamera>(0, conf.cam.pattern_path);
-		cam.driver->set_resolution(320,240);
-		cam.driver->set_matchval(conf.cam.match_value);
-		cam.thread = std::thread([&](auto *atom){ cam.driver->start_sync_camera(atom); }, &cam.value);
-
-		logger->info("cam {} initialized", 0);
-
-		auto cam_timer = std::make_shared<recur_timer>(ioctx);
-		cam_timer->start(std::chrono::milliseconds(500), [&, cam_timer](auto ec)
-		{
-			if(ec) return;
-			logger->debug("CAM VALUE {} ", cam.value.load());
-		});
-	}
-
-	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
-	auto mqtt_cl = mqtt::make_client(ioctx, conf.common.host, conf.common.port);
-	auto &cl = *mqtt_cl;
-
-	cl.set_client_id(conf.common.name);
-	cl.set_clean_session(true);
-
-	struct {
 		u32 steer_pwm = def::STEER_DC_DEF;
 		u8 speed = proto::Speed::STOP;
 		u8 gap = conf.gap_test;
 		i32 align = 0;
 	} control_state;
 
-	std::unordered_map<std::string, std::function<void(std::string)>> fn_map;
+	struct {
+		std::unique_ptr<SyncCamera> driver;
+		std::thread thread;
+		std::atomic<int> value;
+		int center = 0;
+	} cam;
 
+	if(conf.is_slave)
+	{
+		if(0> access(conf.cam.pattern_path.c_str(), R_OK))
+			logger->error("cam pattern not found at {}: {}", conf.cam.pattern_path, strerror(errno));
+		else
+		{
+			cam.driver = try_init<SyncCamera>("camera", "/dev/video0", conf.cam.pattern_path);
+			if(cam.driver)
+			{
+				cam.driver->set_resolution(320,240);
+				cam.driver->set_matchval(conf.cam.match_value);
+				cam.thread = std::thread([&](auto *atom){ cam.driver->start_sync_camera(atom); }, &cam.value);
+
+				logger->info("cam {} initialized", 0);
+
+				auto cam_timer = std::make_shared<recur_timer>(ioctx);
+				cam_timer->start(std::chrono::milliseconds(500), [&, cam_timer](auto ec)
+				{
+					if(ec) return;
+					control_state.align = cam.value.load();
+					logger->debug("CAM: {} ", control_state.align);
+				});
+			}
+		}
+	}
+
+	std::unordered_map<std::string, std::function<void(std::string)>> fn_map;
 
 	fn_map.emplace(def::MOTOR_SUB, [&](const std::string& str)
 	{
@@ -166,12 +165,6 @@ int main(int argc, const char* argv[])
 		});
 	}
 
-
-	if(conf.is_slave)
-	{
-
-	}
-
 	if(steering)
 	{
 		steering->set_duty_cycle(def::STEER_DC_DEF);
@@ -205,6 +198,12 @@ int main(int argc, const char* argv[])
 		}
 	});
 
+	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
+	auto mqtt_cl = mqtt::make_client(ioctx, conf.common.host, conf.common.port);
+	auto &cl = *mqtt_cl;
+
+	cl.set_client_id(conf.common.name);
+	cl.set_clean_session(true);
 
 	struct {
 		u16 steer, motor;
