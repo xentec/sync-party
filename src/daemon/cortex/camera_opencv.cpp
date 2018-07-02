@@ -6,6 +6,21 @@
 using namespace cv;
 using namespace zbar;
 
+void SyncCamera::start_sync_camera(std::atomic<int> *return_value) {
+    for(;;) {
+        double matchvalue = 0.0;
+        matchvalue = pattern_matching_scaled(CV_TM_SQDIFF_NORMED); //look for pattern
+        if (matchvalue>0) break; //pattern found, break loop
+        flush_frames(1); //if no pattern was detected, keep camera busy for 1 second
+    }
+    initialize_tracker("KCF");
+
+    for(;;) {
+        *return_value->store(track_next());
+    }
+}
+
+/*
 void *start_sync_camera(void *thread_data) {
 	struct camera_thread_data *local_data;
 	local_data = (struct camera_thread_data*) thread_data;
@@ -28,7 +43,7 @@ void *start_sync_camera(void *thread_data) {
 		*local_data->returnvalue = local_data->cap->track_next();
 	}
 }
-
+*/
 
 /**
  * @brief ContinuousScanBarcode Keeps scanning for barcodes
@@ -36,26 +51,29 @@ void *start_sync_camera(void *thread_data) {
  * @return Numeric barcode in exit message
  */
 
-void *continuous_scan_barcode(void *thread_data) {
+void SyncCamera::continuous_scan_barcode(std::atomic<int> *return_barcode, int retries, int show_rectangle) {
 	long* barcode = new long(0);
-	struct barcode_thread_data *local_data;
-	local_data = (struct barcode_thread_data*) thread_data;
 	//keep scanning until we find a barcode
-	if (local_data->retries!=0) {
-		for (int i = 0;i<local_data->retries;i++) {
-			*barcode=local_data->cap->scan_barcode(local_data->show_rectangle);
+    if (retries!=0) {
+        for (int i = 0;i<retries;i++) {
+            *barcode=scan_barcode(show_rectangle);
 			if(*barcode != 0) {
-				pthread_exit((void**)barcode); //found barcode or encountered an error, exiting
+                *return_barcode = *barcode;
+                return;
+                //pthread_exit((void**)barcode); //found barcode or encountered an error, exiting
 			}
 		}
 	}
 	else for (;;) { // infinite scan
-		*barcode=local_data->cap->scan_barcode(local_data->show_rectangle);
+        *barcode=scan_barcode(show_rectangle);
 		if(*barcode != 0) {
-			pthread_exit((void**)barcode); //found barcode or encountered an error, exiting
+            *return_barcode=*barcode;
+            return;
+            //pthread_exit((void**)barcode); //found barcode or encountered an error, exiting
 		}
 	}
-	pthread_exit((void**)barcode); // exit with zero
+    return;
+     //pthread_exit((void**)barcode); // exit with zero
 }
 
 
