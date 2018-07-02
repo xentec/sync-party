@@ -195,9 +195,9 @@ int main(int argc, const char* argv[])
 				steering->set_duty_cycle(pwm_corr);
 	
 			if(conf.is_slave) {
-				speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, 0);
+				auto speed_corr = adjust_speed(control_state.steer_pwm, control_state.speed, control_state.gap, 0);
 
-			logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, control_state.gap);
+			logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", control_state.speed, speed_corr, control_state.gap);
 
 			if(driver)
 				driver->drive(speed_corr);
