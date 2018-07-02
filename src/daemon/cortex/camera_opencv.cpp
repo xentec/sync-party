@@ -8,22 +8,22 @@ using namespace cv;
 using namespace zbar;
 
 void SyncCamera::start_sync_camera(std::atomic<int> *return_value) {
-    double matchvalue = 0.0;
-    for(;;) {
-        while(matchvalue <= 0)
-        {
-            matchvalue = pattern_matching_scaled(CV_TM_SQDIFF_NORMED); //look for pattern
-            if (matchvalue>0) break; //pattern found, break loop
-            flush_frames(1); //if no pattern was detected, keep camera busy for 1 second
-        }
+	double matchvalue = 0.0;
+	for(;;) {
+		while(matchvalue <= 0)
+		{
+			matchvalue = pattern_matching_scaled(CV_TM_SQDIFF_NORMED); //look for pattern
+			if (matchvalue>0) break; //pattern found, break loop
+			flush_frames(1); //if no pattern was detected, keep camera busy for 1 second
+		}
 
-        initialize_tracker("KCF");
+		initialize_tracker("KCF");
 
-        while (return_value > 0)
-        {
-            return_value->store(track_next());
-        }
-    }
+		while (return_value->load() > 0)
+		{
+			return_value->store(track_next());
+		}
+	}
 }
 
 /*
