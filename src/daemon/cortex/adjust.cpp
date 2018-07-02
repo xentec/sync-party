@@ -12,23 +12,27 @@
 #define TO_RADIANS 0.01745
 #define TO_DEGREES 57.2958
 
-constexpr f64 C = MINMAX_DEGREE / (def::STEER_DC_SCALE.max - def::STEER_DC_SCALE.min) / 2;
+inline f32 deg(u32 steer)
+{
+	auto dc_diff = std::abs(def::STEER_DC_DEF - i32(steer));
+	return dc_diff * MINMAX_DEGREE / ((def::STEER_DC_SCALE.max - def::STEER_DC_SCALE.min) / 2);
+}
 
 u8 adjust_speed(u32 steer, u8 speed, u8 gap_cm, int cam)
 {
-	u8 new_speed = speed;
-
+	const f32 degree = deg(steer);
 	const u32 gap_mm = gap_cm * 10 + CAR_WIDTH;
-	const f32 degree = std::abs(f32(def::STEER_DC_DEF - steer)) * C;
-	const f32 sin_w = 1 + (gap_mm * std::sin(degree*TO_RADIANS));
 
+	const f32 sin_w = gap_mm * std::sin(degree*TO_RADIANS);
+
+	u8 new_speed = speed;
 	if(steer < def::STEER_DC_DEF)
 	{
-		new_speed = speed * (sin_w / CAR_LENGTH);
+		new_speed = speed * (1 + (sin_w / CAR_LENGTH));
 	}
 	else if(steer > def::STEER_DC_DEF)
 	{
-		new_speed = speed * (CAR_LENGTH / sin_w);
+		new_speed = speed * (1 + (CAR_LENGTH / sin_w));
 	}
 
 	static i16 init_cam = cam;
@@ -42,9 +46,10 @@ u8 adjust_speed(u32 steer, u8 speed, u8 gap_cm, int cam)
 
 u32 adjust_steer(u32 steer, u8 gap_cm)
 {
-	const f32 degree = std::abs(f32(def::STEER_DC_DEF - steer)) * C;
+	const f32 degree = deg(steer);
+	const u32 gap_mm = gap_cm * 10 + CAR_WIDTH;
 
-	const f32 r2 = (CAR_LENGTH / std::sin(degree * TO_RADIANS)) + CAR_WIDTH + gap_cm * 10;
+	const f32 r2 = (CAR_LENGTH / std::sin(degree * TO_RADIANS)) + gap_mm;
 	f32 corr = 15000 * std::asin(CAR_LENGTH / r2) * TO_DEGREES;
 
 	if(steer < def::STEER_DC_DEF)
@@ -57,7 +62,6 @@ u32 adjust_steer(u32 steer, u8 gap_cm)
 		new_steer -= 30000;
 	else if((init_cm > gap_cm) && (1770000 >= steer) && (steer > def::STEER_DC_DEF))
 		new_steer += 30000;
-
 
 	return new_steer;
 }
