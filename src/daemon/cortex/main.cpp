@@ -151,8 +151,6 @@ int main(int argc, const char* argv[])
 
 			static u8 pin = 7;
 
-			pin = pin == 8 ? 7 : 8;
-
 			driver->gap(pin, [&](auto ec, u8 cm)
 			{
 				if(ec)
