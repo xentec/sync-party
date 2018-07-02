@@ -83,7 +83,7 @@ int main(int argc, const char* argv[])
 		int center = 0;
 	} cam;
 
-	if(0> access(conf.cam.pattern_path.c_str(), R_OK))
+	if(conf.is_slave && 0> access(conf.cam.pattern_path.c_str(), R_OK))
 		logger->warn("cam pattern not found at {}: {}", conf.cam.pattern_path, strerror(errno));
 	else
 	{
