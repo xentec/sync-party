@@ -18,6 +18,11 @@
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/steady_timer.hpp>
 
+#include "camera/camera_opencv.h"
+#include <pthread.h>
+#include <unistd.h>
+
+
 /* slave
  * mqtt -> driver, steering
 */
@@ -63,6 +68,37 @@ int main(int argc, const char* argv[])
 	auto driver = try_init<Driver>("driver", ioctx, "/dev/ttyACM0");
 	auto steering = try_init<PWM>("steering", def::STEER_DC_PERIOD);
 
+        SyncCamera cam(0);
+
+        logger->info("cam {} initialized",0);
+
+        cam.set_resolution(320,240);
+        cam.set_matchval(0.7);
+        cam.set_pattern("OTH_logo_small_2.png");
+
+        pthread_t thread;
+        camera_thread_data data;
+        volatile int return_value;
+        int center_camera;
+        return_value = 0;
+        data.cap = &cam;
+        data.returnvalue = &return_value;
+        pthread_create(&thread,NULL,StartSyncCamera,(void*) &data);
+        logger->info("Looking for pattern ...");
+        while(return_value==-1) {
+            usleep(30000);
+        }
+        if(return_value==-2) {
+            logger->info("Tracking error");
+            return -1;
+        }
+
+        if(return_value>0) {
+            logger->info("Tracking started: {}",return_value);
+            center_camera = return_value;
+        }
+
+
 	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
 	auto mqtt_cl = mqtt::make_client(ioctx, conf.common.host, conf.common.port);
 	auto &cl = *mqtt_cl;
@@ -87,6 +123,7 @@ int main(int argc, const char* argv[])
 			if(speed_prev != speed)
 			{
 				speed_prev = speed;
+                                logger->info("Camera value: {}",return_value);
 				logger->debug("HW: motor: {:02x}", speed);
 				driver->drive(speed);
 			}
