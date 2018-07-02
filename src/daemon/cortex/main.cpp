@@ -19,6 +19,11 @@
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/steady_timer.hpp>
 
+#include "camera_opencv.h"
+#include <pthread.h>
+#include <unistd.h>
+
+
 /* slave
  * mqtt -> driver, steering
 */
@@ -69,6 +74,33 @@ int main(int argc, const char* argv[])
 	auto driver = try_init<Driver>("driver", ioctx, "/dev/ttyACM0");
 	auto steering = try_init<PWM>("steering", def::STEER_DC_PERIOD);
 
+	SyncCamera cam(0);
+
+	logger->info("cam {} initialized",0);
+
+	cam.set_resolution(320,240);
+	cam.set_matchval(0.7);
+	cam.set_pattern("OTH_logo_small_2.png");
+
+    volatile std::atomic<int> return_value;
+	int center_camera;
+	return_value = 0;
+    std::thread camthread (cam.start_sync_camera,&return_value);
+	logger->info("Looking for pattern ...");
+    while(return_value.load()==-1) {
+		usleep(30000);
+	}
+    if(return_value.load()==-2) {
+		logger->info("Tracking error");
+		return -1;
+	}
+
+    if(return_value.load()>0) {
+        logger->info("Tracking started: {}",return_value.load());
+        center_camera = return_value.load();
+	}
+
+
 	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
 	auto mqtt_cl = mqtt::make_client(ioctx, conf.common.host, conf.common.port);
 	auto &cl = *mqtt_cl;
@@ -80,6 +112,7 @@ int main(int argc, const char* argv[])
 		u32 steer_pwm = def::STEER_DC_DEF;
 		u8 speed = proto::Speed::STOP;
 		u8 gap = conf.gap_test;
+		i32 align = 0;
 	} control_state;
 
 	std::unordered_map<std::string, std::function<void(std::string)>> fn_map;
@@ -132,6 +165,17 @@ int main(int argc, const char* argv[])
 		});
 	}
 
+
+    if(driver && conf.is_slave)
+    {
+        auto gap_timer_cam = std::make_shared<recur_timer>(ioctx);
+        gap_timer->start(std::chrono::milliseconds(100), [&, gap_timer_cam]()
+        {
+
+        logger->debug("CAM VALUE {} ", return_value.load());
+        });
+
+    }
 
 	if(steering)
 	{
@@ -205,6 +249,6 @@ int main(int argc, const char* argv[])
 
 	logger->info("running...");
 	ioctx.run();
-
+    camthread.join();
 	return 0;
 }
