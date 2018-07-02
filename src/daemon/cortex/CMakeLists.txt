@@ -3,6 +3,8 @@ set(TARGET_NAME sp-cortex)
 add_executable(${TARGET_NAME}
 	main.cpp
 
+	adjust.hpp
+	adjust.cpp
 	driver.hpp
 	driver.cpp
 	pwm.hpp
@@ -21,13 +23,13 @@ target_link_libraries(${TARGET_NAME}
 	PUBLIC
 	# static
 	# dynamic
-	    sp-common
+		sp-common
 		stdc++fs
 )
 
 target_include_directories(${TARGET_NAME}
 	PRIVATE
-	    ${PROJECT_SOURCE_DIR}/../driver
+		${PROJECT_SOURCE_DIR}/../driver
 )
 
 install(TARGETS ${TARGET_NAME} RUNTIME DESTINATION bin)
