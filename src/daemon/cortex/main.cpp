@@ -43,6 +43,7 @@ struct
 {
 	CommonOpts common;
 	bool is_slave;
+	u32 gap_test = 0;
 } conf;
 
 int main(int argc, const char* argv[])
@@ -56,6 +57,7 @@ int main(int argc, const char* argv[])
 	parse_common_opts(opts, conf.common, false);
 
 	conf.is_slave = opts["-S"];
+	opts({"-g", "--gap"}, conf.gap_test) >> conf.gap_test;
 
 	logger = slog::stdout_color_st("cortex");
 	logger->info("sp-cortex v0.1");
@@ -77,8 +79,9 @@ int main(int argc, const char* argv[])
 	struct {
 		u32 steer_pwm = def::STEER_DC_DEF;
 		u8 speed = proto::Speed::STOP;
-		u8 gap = 0;
+		u8 gap = conf.gap_test;
 	} control_state;
+
 	std::unordered_map<std::string, std::function<void(std::string)>> fn_map;
 
 
@@ -106,16 +109,17 @@ int main(int argc, const char* argv[])
 		}
 	});
 
-	auto gap_timer = std::make_shared<recur_timer>(ioctx);
-	gap_timer->start(std::chrono::milliseconds(100), [&, gap_timer](auto ec)
+	if(driver && conf.is_slave)
 	{
-		if(ec) return;
+		auto gap_timer = std::make_shared<recur_timer>(ioctx);
+		gap_timer->start(std::chrono::milliseconds(100), [&, gap_timer](auto ec)
+		{
+			if(ec) return;
 
-		static u8 pin = 7;
+			static u8 pin = 7;
 
-		pin = pin == 8 ? 7 : 8;
+			pin = pin == 8 ? 7 : 8;
 
-		if(driver)
 			driver->gap(pin, [&](auto ec, u8 cm)
 			{
 				if(ec)
@@ -125,7 +129,8 @@ int main(int argc, const char* argv[])
 					control_state.gap = cm;
 				}
 			});
-	});
+		});
+	}
 
 
 	if(steering)
