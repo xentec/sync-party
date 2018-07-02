@@ -62,3 +62,18 @@ private:
 		u8 curr;
 	} speed_ctrl;
 };
+
+struct recur_timer
+{
+	recur_timer(io_context &ioctx);
+
+	using TimerCB = std::function<void(error_code)>;
+	void start(steady_timer::duration interval, TimerCB cb);
+	void stop();
+private:
+	void run(error_code ec);
+
+	TimerCB fn;
+	steady_timer timer;
+	steady_timer::duration ival;
+};

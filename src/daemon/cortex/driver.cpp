@@ -42,7 +42,7 @@ Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 	, parse_state(SYNC)
 	, speed_ctrl{ steady_timer(ioctx), Speed::STOP }
 {
-	dev.set_option(serial_port::baud_rate(115200));
+	dev.set_option(serial_port::baud_rate(1000000 /*115200*/));
 	dev.set_option(serial_opts::hang_up(false));
 	recv_start();
 
@@ -94,6 +94,12 @@ void Driver::wd_feed(error_code err)
 
 void Driver::send(Type type, u8 value, std::function<void(error_code, u8 cm)> cb)
 {
+	if(q.size() > 16 && !(type == Type::MOTOR && value == Speed::STOP))
+	{
+		logger->warn("dropping {}:{}", u8(type), value);
+		return;
+	}
+
 	logger->trace("TX {:02X} {:3}", u8(type), value);
 
 	std::ostream out(&buf_w);
@@ -249,4 +255,32 @@ void Driver::on_packet(u8 type, u8 value)
 		else
 			break;
 	}
+}
+
+
+
+recur_timer::recur_timer(io_context &ioctx)
+	: timer(ioctx)
+{}
+
+void recur_timer::start(steady_timer::duration interval, TimerCB cb)
+{
+	fn = cb;
+	ival = interval;
+	run({});
+}
+
+void recur_timer::stop()
+{
+	timer.cancel();
+}
+
+void recur_timer::run(error_code ec)
+{
+	fn(ec);
+
+	if(ec) return;
+
+	timer.expires_from_now(ival);
+	timer.async_wait([this](auto ec) { run(ec); });
 }

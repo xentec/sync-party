@@ -9,6 +9,8 @@ PKG_CHECK_MODULES(GTK2 REQUIRED gtk+-2.0)
 add_executable(${TARGET_NAME}
 	main.cpp
 
+	adjust.hpp
+	adjust.cpp
 	driver.hpp
 	driver.cpp
 	pwm.hpp
@@ -29,7 +31,7 @@ target_link_libraries(${TARGET_NAME}
 	PUBLIC
 	# static
 	# dynamic
-	    sp-common
+		sp-common
 		stdc++fs
 		zbar
 		pthread
@@ -39,9 +41,13 @@ target_link_libraries(${TARGET_NAME}
 
 target_include_directories(${TARGET_NAME}
 	PRIVATE
+<<<<<<< HEAD
 	    ${PROJECT_SOURCE_DIR}/../driver
 	    ${GTK3_INCLUDE_DIRS} 
 	    ${OpenCV_INCLUDE_DIRS} 
+=======
+		${PROJECT_SOURCE_DIR}/../driver
+>>>>>>> master
 )
 
 ADD_DEFINITIONS(${GTK3_CFLAGS_OTHER})
