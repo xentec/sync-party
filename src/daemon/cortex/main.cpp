@@ -7,6 +7,7 @@
 #include "types.hpp"
 #include "util.hpp"
 
+#include "adjust.hpp"
 #include "driver.hpp"
 #include "pwm.hpp"
 
@@ -70,7 +71,13 @@ int main(int argc, const char* argv[])
 	cl.set_client_id(conf.common.name);
 	cl.set_clean_session(true);
 
+	struct {
+		u32 steer_pwm = def::STEER_DC_DEF;
+		u8 speed = proto::Speed::STOP;
+		u8 gap = 0;
+	} control_state;
 	std::unordered_map<std::string, std::function<void(std::string)>> fn_map;
+
 	if(driver)
 	{
 		fn_map.emplace(def::MOTOR_SUB, [&](const std::string& str)
@@ -86,12 +93,37 @@ int main(int argc, const char* argv[])
 			static u8 speed_prev = proto::Speed::STOP;
 			if(speed_prev != speed)
 			{
-				speed_prev = speed;
-				logger->debug("HW: motor: {:02x}", speed);
+				control_state.speed = speed_prev = speed;
+				auto speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, 0);
+				logger->debug("HW: motor: {:02x} -> {:02x}", speed, speed_corr);
+
 				driver->drive(speed);
 			}
 		});
+
+		auto gap_timer = std::make_shared<recur_timer>(ioctx);
+		gap_timer->start(std::chrono::milliseconds(100), [&, gap_timer](auto ec)
+		{
+			if(ec) return;
+
+			static u8 pin = 7;
+
+			pin = pin == 8 ? 7 : 8;
+
+			if(driver)
+				driver->gap(pin, [&](auto ec, u8 cm)
+				{
+					if(ec)
+						logger->debug("GAP ERR {} ", ec.message());
+					else
+					{
+						control_state.gap = cm;
+						logger->debug("GAP {} ", cm);
+					}
+				});
+		});
 	}
+
 	if(steering)
 	{
 		steering->set_duty_cycle(def::STEER_DC_DEF);
@@ -105,12 +137,15 @@ int main(int argc, const char* argv[])
 			static u32 pwm_prev = 0;
 			if(pwm_prev != pwm)
 			{
-				pwm_prev = pwm;
-				logger->debug("HW: steer: {:9}", pwm);
-				steering->set_duty_cycle(pwm);
+				control_state.steer_pwm = pwm_prev = pwm;
+				auto pwm_corr = adjust_steer(pwm, control_state.gap);
+				logger->debug("HW: steer: {:7} -> {:7}", pwm, pwm_corr);
+
+				steering->set_duty_cycle(pwm_corr);
 			}
 		});
 	}
+
 
 	struct {
 		u16 steer, motor;
