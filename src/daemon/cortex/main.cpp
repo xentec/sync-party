@@ -82,14 +82,11 @@ int main(int argc, const char* argv[])
 	cam.set_matchval(0.7);
 	cam.set_pattern("OTH_logo_small_2.png");
 
-	pthread_t thread;
-	camera_thread_data data;
-	volatile int return_value;
+    volatile std::atomic<int> return_value;
 	int center_camera;
 	return_value = 0;
-	data.cap = &cam;
-	data.returnvalue = &return_value;
-	pthread_create(&thread,NULL,start_sync_camera,(void*) &data);
+    std::thread camthread (cam.start_sync_camera,&return_value);
+    //pthread_create(&thread,NULL,start_sync_camera,(void*) &data);
 	logger->info("Looking for pattern ...");
 	while(return_value==-1) {
 		usleep(30000);
@@ -242,6 +239,6 @@ int main(int argc, const char* argv[])
 
 	logger->info("running...");
 	ioctx.run();
-
+    camthread.join();
 	return 0;
 }

@@ -5,7 +5,6 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/video.hpp>
 #include <opencv2/tracking/tracker.hpp>
-#include <pthread.h>
 #include <atomic>
 
 class SyncCamera {
@@ -30,6 +29,8 @@ public:
 	int track_next();
 	int initialize_tracker(std::string tracker_type = "MEDIANFLOW");
 	void flush_frames(int seconds);
+    void start_sync_camera(std::atomic<int> *return_value);
+    void continuous_scan_barcode(std::atomic<int> *return_barcode, int retries = 0, int show_rectangle = 0);
 };
 
 struct barcode_thread_data {
@@ -43,7 +44,7 @@ struct camera_thread_data {
 	volatile int *returnvalue;
 };
 
-void *continuous_scan_barcode(void *thread_data);
-void *start_sync_camera(void *thread_data);
+//void *continuous_scan_barcode(void *thread_data);
+//void *start_sync_camera(void *thread_data);
 
 
