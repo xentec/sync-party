@@ -18,7 +18,7 @@ class SyncCamera {
 	double matchval = 0.7;
 
 public:
-	SyncCamera(int camera_number);
+	SyncCamera(int camera_number, std::string pattern_path);
 	~SyncCamera();
 	void set_resolution(u32 width, u32 height);
 	void set_pattern(cv::String pattern);
@@ -29,8 +29,8 @@ public:
 	int track_next();
 	int initialize_tracker(std::string tracker_type = "MEDIANFLOW");
 	void flush_frames(int seconds);
-    void start_sync_camera(std::atomic<int> *return_value);
-    void continuous_scan_barcode(std::atomic<int> *return_barcode, int retries = 0, int show_rectangle = 0);
+	void start_sync_camera(std::atomic<int> *return_value);
+	void continuous_scan_barcode(std::atomic<int> *return_barcode, int retries = 0, int show_rectangle = 0);
 };
 
 struct barcode_thread_data {
