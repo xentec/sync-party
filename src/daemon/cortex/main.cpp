@@ -189,8 +189,9 @@ int main(int argc, const char* argv[])
 
 			if(conf.is_slave && control_state.speed != proto::Speed::STOP)
 			{
-				auto speed_corr = adjust_speed(control_state.steer_pwm, control_state.speed, control_state.gap, 0);
-				logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", control_state.speed, speed_corr, control_state.gap);
+				auto speed = control_state.speed;
+				auto speed_corr = control_state.speed = adjust_speed(control_state.steer_pwm, speed, control_state.gap, 0);
+				logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, control_state.gap);
 
 				if(driver)
 					driver->drive(speed_corr);
