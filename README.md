@@ -4,7 +4,7 @@ Synchrongesteurte RC-Autos.
 
 ### Kompileren
 
-Zum Kompilieren des Projektes reicht es die `build.sh` auszuführen. Die fertigen Binaries liegen direkt im `build`-Ordner.
+Zum Kompilieren des Projektes reicht es die `build.sh` auszuführen. Die fertigen Binaries liegen direkt im `bin`-Ordner.
 
 ### Settings
 
@@ -14,4 +14,3 @@ The Pololu Motor Controller recieves a PWM signal via the RC1 pin from the ardui
 	0x10 means full reverse speed
 	0x30 means stop the motor
 	0x90 means full forward speed
-

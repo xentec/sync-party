@@ -1,25 +1,34 @@
 #!/bin/bash
 
+SP_DIR="$(dirname "$(readlink -fn "${BASH_SOURCE[0]}")")"
+
 die() {
-	echo "$@"
+    echo "$@"
 	exit 1
 }
 
 pkg_check() {
-	local fail=0
+    local fail=0
 	for cmd; do
-		
-		if ! command -v "$cmd" > /dev/null; then 
-			echo "$cmd is missing"
+	    if ! command -v "$cmd" > /dev/null; then
+		    echo "$cmd is missing"
 			fail=1
 		fi
 	done
 	[ $fail -eq 1 ] && die "Please install the missing binaries"
 }
 
+build() {
+    for dir; do
+	(
+	    set -e
+		cd "$SP_DIR/src/$dir"
+		mkdir -p build && cd build;
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$SP_DIR/bin"
+		make -j
+	)
+	done
+}
 
-pkg_check g++ cmake
-
-mkdir -p build && cd build
-cmake ..
-make
+pkg_check cmake g++
+build daemon
