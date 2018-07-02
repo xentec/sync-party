@@ -8,6 +8,7 @@
 #include "util.hpp"
 
 #include "adjust.hpp"
+#include "camera_opencv.hpp"
 #include "driver.hpp"
 #include "pwm.hpp"
 
@@ -18,11 +19,6 @@
 
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/steady_timer.hpp>
-
-#include "camera_opencv.h"
-#include <pthread.h>
-#include <unistd.h>
-
 
 /* slave
  * mqtt -> driver, steering
@@ -49,6 +45,10 @@ struct
 	CommonOpts common;
 	bool is_slave;
 	u32 gap_test = 0;
+	struct {
+		std::string pattern_path;
+		f32 match_value;
+	} cam;
 } conf;
 
 int main(int argc, const char* argv[])
@@ -63,6 +63,8 @@ int main(int argc, const char* argv[])
 
 	conf.is_slave = opts["-S"];
 	opts({"-g", "--gap"}, conf.gap_test) >> conf.gap_test;
+	opts({"--cam-pattern"}, conf.cam.pattern_path) >> conf.cam.pattern_path;
+	opts({"--cam-match-val"}, conf.cam.match_value) >> conf.cam.match_value;
 
 	logger = slog::stdout_color_st("cortex");
 	logger->info("sp-cortex v0.1");
@@ -74,32 +76,31 @@ int main(int argc, const char* argv[])
 	auto driver = try_init<Driver>("driver", ioctx, "/dev/ttyACM0");
 	auto steering = try_init<PWM>("steering", def::STEER_DC_PERIOD);
 
-	SyncCamera cam(0);
+	struct {
+		std::unique_ptr<SyncCamera> driver;
+		std::thread thread;
+		std::atomic<int> value;
+		int center = 0;
+	} cam;
 
-	logger->info("cam {} initialized",0);
+	if(0> access(conf.cam.pattern_path.c_str(), R_OK))
+		logger->warn("cam pattern not found at {}: {}", conf.cam.pattern_path, strerror(errno));
+	else
+	{
+		cam.driver = std::make_unique<SyncCamera>(0, conf.cam.pattern_path);
+		cam.driver->set_resolution(320,240);
+		cam.driver->set_matchval(conf.cam.match_value);
+		cam.thread = std::thread([&](auto *atom){ cam.driver->start_sync_camera(atom); }, &cam.value);
 
-	cam.set_resolution(320,240);
-	cam.set_matchval(0.7);
-	cam.set_pattern("OTH_logo_small_2.png");
+		logger->info("cam {} initialized", 0);
 
-    volatile std::atomic<int> return_value;
-	int center_camera;
-	return_value = 0;
-    std::thread camthread (cam.start_sync_camera,&return_value);
-	logger->info("Looking for pattern ...");
-    while(return_value.load()==-1) {
-		usleep(30000);
+		auto cam_timer = std::make_shared<recur_timer>(ioctx);
+		cam_timer->start(std::chrono::milliseconds(500), [&, cam_timer](auto ec)
+		{
+			if(ec) return;
+			logger->debug("CAM VALUE {} ", cam.value.load());
+		});
 	}
-    if(return_value.load()==-2) {
-		logger->info("Tracking error");
-		return -1;
-	}
-
-    if(return_value.load()>0) {
-        logger->info("Tracking started: {}",return_value.load());
-        center_camera = return_value.load();
-	}
-
 
 	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
 	auto mqtt_cl = mqtt::make_client(ioctx, conf.common.host, conf.common.port);
@@ -166,16 +167,10 @@ int main(int argc, const char* argv[])
 	}
 
 
-    if(driver && conf.is_slave)
-    {
-        auto gap_timer_cam = std::make_shared<recur_timer>(ioctx);
-        gap_timer->start(std::chrono::milliseconds(100), [&, gap_timer_cam]()
-        {
+	if(conf.is_slave)
+	{
 
-        logger->debug("CAM VALUE {} ", return_value.load());
-        });
-
-    }
+	}
 
 	if(steering)
 	{
@@ -202,7 +197,6 @@ int main(int argc, const char* argv[])
 	});
 
 
-
 	struct {
 		u16 steer, motor;
 	} sub;
@@ -226,7 +220,7 @@ int main(int argc, const char* argv[])
 		logger->info("disconnected");
 	});
 
-	cl.set_publish_handler([&](u8 fixed_header, boost::optional<u16> packet_id, const std::string& topic_name, const std::string& contents)
+	cl.set_publish_handler([&](u8, boost::optional<u16>, const std::string& topic_name, const std::string& contents)
 	{
 		auto itr = fn_map.find(topic_name);
 		if(itr == fn_map.end())
@@ -249,6 +243,6 @@ int main(int argc, const char* argv[])
 
 	logger->info("running...");
 	ioctx.run();
-    camthread.join();
+
 	return 0;
 }

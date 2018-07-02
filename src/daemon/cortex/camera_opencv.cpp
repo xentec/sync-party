@@ -1,4 +1,4 @@
-#include "camera_opencv.h"
+#include "camera_opencv.hpp"
 
 #include <zbar.h>
 
@@ -7,17 +7,17 @@ using namespace cv;
 using namespace zbar;
 
 void SyncCamera::start_sync_camera(std::atomic<int> *return_value) {
-    for(;;) {
-        double matchvalue = 0.0;
-        matchvalue = pattern_matching_scaled(CV_TM_SQDIFF_NORMED); //look for pattern
-        if (matchvalue>0) break; //pattern found, break loop
-        flush_frames(1); //if no pattern was detected, keep camera busy for 1 second
-    }
-    initialize_tracker("KCF");
+	for(;;) {
+		double matchvalue = 0.0;
+		matchvalue = pattern_matching_scaled(CV_TM_SQDIFF_NORMED); //look for pattern
+		if (matchvalue>0) break; //pattern found, break loop
+		flush_frames(1); //if no pattern was detected, keep camera busy for 1 second
+	}
+	initialize_tracker("KCF");
 
-    for(;;) {
-        *return_value->store(track_next());
-    }
+	for(;;) {
+		return_value->store(track_next());
+	}
 }
 
 /*
@@ -54,32 +54,32 @@ void *start_sync_camera(void *thread_data) {
 void SyncCamera::continuous_scan_barcode(std::atomic<int> *return_barcode, int retries, int show_rectangle) {
 	long* barcode = new long(0);
 	//keep scanning until we find a barcode
-    if (retries!=0) {
-        for (int i = 0;i<retries;i++) {
-            *barcode=scan_barcode(show_rectangle);
+	if (retries!=0) {
+		for (int i = 0;i<retries;i++) {
+			*barcode=scan_barcode(show_rectangle);
 			if(*barcode != 0) {
-                *return_barcode = *barcode;
-                return;
-                //pthread_exit((void**)barcode); //found barcode or encountered an error, exiting
+				*return_barcode = *barcode;
+				return;
+				//pthread_exit((void**)barcode); //found barcode or encountered an error, exiting
 			}
 		}
 	}
 	else for (;;) { // infinite scan
-        *barcode=scan_barcode(show_rectangle);
+		*barcode=scan_barcode(show_rectangle);
 		if(*barcode != 0) {
-            *return_barcode=*barcode;
-            return;
-            //pthread_exit((void**)barcode); //found barcode or encountered an error, exiting
+			*return_barcode=*barcode;
+			return;
+			//pthread_exit((void**)barcode); //found barcode or encountered an error, exiting
 		}
 	}
-    return;
-     //pthread_exit((void**)barcode); // exit with zero
+	return;
+	 //pthread_exit((void**)barcode); // exit with zero
 }
 
 
-SyncCamera::SyncCamera(int camera_number)
+SyncCamera::SyncCamera(int camera_number, std::string pattern_path)
 	: cap(camera_number)
-	, input_template(cv::imread("pattern.png", cv::IMREAD_COLOR))
+	, input_template(cv::imread(pattern_path, cv::IMREAD_COLOR))
 	, cam_fps(cap.get(CAP_PROP_FPS))
 {}
 

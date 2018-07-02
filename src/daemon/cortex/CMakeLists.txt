@@ -10,7 +10,7 @@ add_executable(${TARGET_NAME}
 	pwm.hpp
 	pwm.cpp
 	camera_opencv.cpp
-	camera_opencv.h
+	camera_opencv.hpp
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES
