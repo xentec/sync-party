@@ -86,19 +86,18 @@ int main(int argc, const char* argv[])
 	int center_camera;
 	return_value = 0;
     std::thread camthread (cam.start_sync_camera,&return_value);
-    //pthread_create(&thread,NULL,start_sync_camera,(void*) &data);
 	logger->info("Looking for pattern ...");
-	while(return_value==-1) {
+    while(return_value.load()==-1) {
 		usleep(30000);
 	}
-	if(return_value==-2) {
+    if(return_value.load()==-2) {
 		logger->info("Tracking error");
 		return -1;
 	}
 
-	if(return_value>0) {
-		logger->info("Tracking started: {}",return_value);
-		center_camera = return_value;
+    if(return_value.load()>0) {
+        logger->info("Tracking started: {}",return_value.load());
+        center_camera = return_value.load();
 	}
 
 
@@ -166,6 +165,17 @@ int main(int argc, const char* argv[])
 		});
 	}
 
+
+    if(driver && conf.is_slave)
+    {
+        auto gap_timer_cam = std::make_shared<recur_timer>(ioctx);
+        gap_timer->start(std::chrono::milliseconds(100), [&, gap_timer_cam]()
+        {
+
+        logger->debug("CAM VALUE {} ", return_value.load());
+        });
+
+    }
 
 	if(steering)
 	{
