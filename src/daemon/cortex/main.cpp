@@ -90,6 +90,8 @@ int main(int argc, const char* argv[])
 		int center = 0;
 	} cam;
 
+    cam.value.store(0);
+
 	if(conf.is_slave)
 	{
 		if(0> access(conf.cam.pattern_path.c_str(), R_OK))
