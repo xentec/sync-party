@@ -68,7 +68,7 @@ u32 adjust_steer(u32 steer, u8 gap_cm)
 	const f32 r2 = (CAR_LENGTH / std::sin(degree * TO_RADIANS)) + gap_mm;
 	f32 corr = 15000 * std::asin(CAR_LENGTH / r2) * TO_DEGREES;
 
-	if(steer > def::STEER_DC_DEF)
+    if(steer < def::STEER_DC_DEF)
 		corr = -corr;
 
 	u32 new_steer = def::STEER_DC_DEF + corr;
