@@ -48,14 +48,14 @@ u8 adjust_speed(u32 steer, u8 speed, u8 gap_cm, int cam)
 			new_speed = proto::Speed::STOP - ((proto::Speed::STOP - speed) / sin_b);
 		}
 	}
-	static i16 init_cam = cam;
-	if (std::abs(init_cam - cam) <= 2) {
+
+    if (std::abs(cam) <= 2) {
 		return new_speed;
 	}
-	else if(init_cam < cam)
-		new_speed -= 4;
-	else if(init_cam > cam)
-		new_speed += 4;
+    else if(0 < cam)
+        new_speed += 2;
+    else if(0 > cam)
+        new_speed -= 2;
 
 	return new_speed;
 }
