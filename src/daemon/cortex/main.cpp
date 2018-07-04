@@ -109,8 +109,19 @@ int main(int argc, const char* argv[])
 				cam_timer->start(std::chrono::milliseconds(500), [&, cam_timer](auto ec)
 				{
 					if(ec) return;
-					control_state.align = cam.value.load();
-					logger->debug("CAM: {} ", control_state.align);
+                    control_state.align = cam.value.load();
+                    if(cam.center==0 && control_state.align>0) {
+                        cam.center=control_state.align;
+                        logger->info("CAM initialized to: {}",cam.center);
+                    }
+                    if(cam.center!=0 && control_state.align>=0) {
+                        logger->debug("CAM value: {}, diff: {}", control_state.align, cam.center-control_state.align);
+                    }
+                    if(cam.center!=0 && control_state.align<0) {
+                        cam.center=0;
+                        logger->debug("CAM pattern lost, err: {}", control_state.align);
+                    }
+
 				});
 			}
 		}
