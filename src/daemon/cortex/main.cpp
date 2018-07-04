@@ -86,11 +86,10 @@ int main(int argc, const char* argv[])
 	struct {
 		std::unique_ptr<SyncCamera> driver;
 		std::thread thread;
-		std::atomic<int> value;
+        std::atomic<int> value::c{0};
 		int center = 0;
 	} cam;
 
-    cam.value.store(0);
 
 	if(conf.is_slave)
 	{
