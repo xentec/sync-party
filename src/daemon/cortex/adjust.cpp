@@ -24,25 +24,38 @@ u8 adjust_speed(u32 steer, u8 speed, u8 gap_cm, int cam)
 	const u32 gap_mm = gap_cm * 10 + CAR_WIDTH;
 
 	const f32 sin_w = 1 + (gap_mm * std::sin(degree*TO_RADIANS)/ CAR_LENGTH);
-
+	const f32 sin_b = 1 + ((gap_mm * std::sin(degree*TO_RADIANS)/ CAR_LENGTH)/2);
+		
 	u8 new_speed = speed;
-	if(steer < def::STEER_DC_DEF)
-	{
-		new_speed = speed * sin_w;
-	}
-	else if(steer > def::STEER_DC_DEF)
-	{
-		new_speed = speed / sin_w;
-	}
+	if(proto::Speed::STOP < speed){
 
+		if(steer < def::STEER_DC_DEF)
+		{
+			new_speed = ((speed - proto::Speed::STOP) * sin_w) + proto::Speed::STOP;
+		}
+		else if(steer > def::STEER_DC_DEF)
+		{
+			new_speed = ((speed - proto::Speed::STOP) / sin_w) + proto::Speed::STOP;
+		}
+	}else if(proto::Speed::STOP > speed){
+
+		if(steer < def::STEER_DC_DEF)
+		{
+			new_speed = proto::Speed::STOP - ((proto::Speed::STOP - speed) * sin_b);
+		}
+		else if(steer > def::STEER_DC_DEF)
+		{
+			new_speed = proto::Speed::STOP - ((proto::Speed::STOP - speed) / sin_b);
+		}
+	}
 	static i16 init_cam = cam;
-	if ((std::abs(init_cam - cam) <= 3)) {
-			return new_speed;
+	if (std::abs(init_cam - cam) <= 2) {
+		return new_speed;
 	}
 	else if(init_cam < cam)
-		new_speed -= 16;
-	else
-		new_speed += 16;
+		new_speed -= 4;
+	else if(init_cam > cam)
+		new_speed += 4;
 
 	return new_speed;
 }
@@ -55,7 +68,7 @@ u32 adjust_steer(u32 steer, u8 gap_cm)
 	const f32 r2 = (CAR_LENGTH / std::sin(degree * TO_RADIANS)) + gap_mm;
 	f32 corr = 15000 * std::asin(CAR_LENGTH / r2) * TO_DEGREES;
 
-	if(steer < def::STEER_DC_DEF)
+	if(steer > def::STEER_DC_DEF)
 		corr = -corr;
 
 	u32 new_steer = def::STEER_DC_DEF + corr;
