@@ -3,6 +3,7 @@
 #include "def.hpp"
 #include "echo.hpp"
 #include "logger.hpp"
+#include "net.hpp"
 #include "opts.hpp"
 #include "timer.hpp"
 #include "types.hpp"
@@ -13,11 +14,8 @@
 #include "driver.hpp"
 #include "pwm.hpp"
 
-#include <mqtt/client.hpp>
-#include <mqtt/str_connect_return_code.hpp>
-
-#include <boost/asio/ip/udp.hpp>
 #include <boost/asio/steady_timer.hpp>
+#include <boost/asio/signal_set.hpp>
 
 /* slave
  * mqtt -> driver, steering
@@ -165,9 +163,11 @@ int main(int argc, const char* argv[])
 		}
 	}
 
-	std::unordered_map<std::string, std::function<void(std::string)>> fn_map;
+	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
+	MQTTClient cl(ioctx, conf.common.host, conf.common.port, conf.common.name);
+	cl.connect({});
 
-	fn_map.emplace(def::MOTOR_SUB, [&](const std::string& str)
+	cl.subscribe(def::MOTOR_SUB, [&](const std::string& str)
 	{
 		using proto::Speed;
 
@@ -207,20 +207,6 @@ int main(int argc, const char* argv[])
 						values.fill(cm);
 						control_state.gap = cm;
 						init = 1;
-
-#if 0
-						if(i >= MAXARRAY) {
-							i=0;
-							init = 1;
-
-							std::array<u8,MAXARRAY> hilfarray = values;
-							std::sort(hilfarray.begin(), hilfarray.end());
-							control_state.gap = hilfarray[MAXARRAY/2];
-						}
-
-						values[i] = cm;
-						i++;
-#endif
 					} else
 					{
 						if(i >= values.size()) {
@@ -253,7 +239,7 @@ int main(int argc, const char* argv[])
 		steering->enable(true);
 	}
 
-	fn_map.emplace(def::STEER_SUB, [&](const std::string& str)
+	cl.subscribe(def::STEER_SUB, [&](const std::string& str)
 	{
 		u32 pwm = map(std::atoi(str.c_str()),
 					  def::STEER_SCALE.min, def::STEER_SCALE.max,
@@ -278,50 +264,6 @@ int main(int argc, const char* argv[])
 			}
 		}
 	});
-
-	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
-	auto mqtt_cl = mqtt::make_client(ioctx, conf.common.host, conf.common.port);
-	auto &cl = *mqtt_cl;
-
-	cl.set_client_id(conf.common.name);
-	cl.set_clean_session(true);
-
-	struct {
-		u16 steer, motor;
-	} sub;
-
-	// Setup handlers
-	cl.set_connack_handler([&] (bool sp, std::uint8_t connack_return_code)
-	{
-		auto rc_str = mqtt::connect_return_code_to_str(connack_return_code);
-		logger->debug("connack: clean: {}, ret code: {}", sp, rc_str);
-		if (connack_return_code != mqtt::connect_return_code::accepted)
-			logger->error("failed to connect: ret code {}", rc_str);
-		else
-		{
-			sub.motor = cl.subscribe(def::MOTOR_SUB, mqtt::qos::at_most_once);
-			sub.steer = cl.subscribe(def::STEER_SUB, mqtt::qos::at_most_once);
-		}
-		return true;
-	});
-	cl.set_close_handler([&]
-	{
-		logger->info("disconnected");
-	});
-
-	cl.set_publish_handler([&](u8, boost::optional<u16>, const std::string& topic_name, const std::string& contents)
-	{
-		auto itr = fn_map.find(topic_name);
-		if(itr == fn_map.end())
-			return true;
-
-		logger->trace("data: {}: {}", topic_name, contents);
-		itr->second(contents);
-
-		return true;
-	});
-
-	cl.connect();
 
 	std::shared_ptr<Echo> echo;
 	if(conf.common.echo_broadcast)

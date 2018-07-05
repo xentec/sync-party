@@ -9,6 +9,8 @@ add_library(${TARGET_NAME} STATIC
 	echo.cpp
 	opts.hpp
 	opts.cpp
+	net.hpp
+	net.cpp
 	logger.hpp
 	timer.hpp
 	timer.cpp
