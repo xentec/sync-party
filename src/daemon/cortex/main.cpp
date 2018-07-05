@@ -75,16 +75,18 @@ int main(int argc, const char* argv[])
 	auto steering = try_init<PWM>("steering", def::STEER_DC_PERIOD);
 
 	struct {
-		u32 steer_pwm = def::STEER_DC_DEF;
+		i32 steer_pwm = def::STEER_DC_DEF;
 		u8 speed = proto::Speed::STOP;
 		u8 speed_prev = proto::Speed::STOP;
 		u8 gap = conf.gap_test;
 		i32 align = 0;
 	} state;
 
-	auto steer = [&](auto pwm_corr, auto pwm_old)
+	auto steer = [&](i32 pwm_corr, i32 pwm_old)
 	{
 		if(state.steer_pwm == pwm_corr) return;
+
+		pwm_corr = clamp(pwm_corr, def::STEER_DC_SCALE.min, def::STEER_DC_SCALE.max);
 
 		state.steer_pwm = pwm_corr;
 		logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm_old, pwm_corr, state.gap);
@@ -226,7 +228,7 @@ int main(int argc, const char* argv[])
 							pwm_corr -= 30000;
 						}
 						state.gap = median;
-						steer(state.steer_pwm, pwm_corr);
+						steer(pwm_corr, state.steer_pwm);
 					}
 				}
 			});
@@ -241,27 +243,26 @@ int main(int argc, const char* argv[])
 
 	cl.subscribe(def::STEER_SUB, [&](const std::string& str)
 	{
+		constexpr u32 STEER_DC_MASTER_LIMIT = 1713876;
+
 		u32 pwm = map(std::atoi(str.c_str()),
 					  def::STEER_SCALE.min, def::STEER_SCALE.max,
 					  def::STEER_DC_SCALE.min, def::STEER_DC_SCALE.max);
 
-		if(state.steer_pwm != pwm)
-		{
-			auto pwm_corr = state.steer_pwm = pwm;
-			if(conf.is_slave){
-				pwm_corr = adjust_steer(pwm, state.gap);
-			}
-			else if(pwm > 1713876){
-				pwm_corr = 1713876;
-			}
-			steer(pwm, pwm_corr);
+		auto pwm_corr = pwm;
+		if(conf.is_slave){
+			pwm_corr = adjust_steer(pwm, state.gap);
+		}
+		else if(pwm > STEER_DC_MASTER_LIMIT){
+			pwm_corr = STEER_DC_MASTER_LIMIT;
+		}
+		steer(pwm_corr, pwm);
 
-			if(conf.is_slave && state.speed != proto::Speed::STOP)
-			{
-				auto speed = state.speed;
-				auto speed_corr = adjust_speed(state.steer_pwm, speed, state.gap, cam.center-state.align);
-				drive(speed, speed_corr);
-			}
+		if(conf.is_slave && state.speed != proto::Speed::STOP)
+		{
+			auto speed = state.speed;
+			auto speed_corr = adjust_speed(state.steer_pwm, speed, state.gap, cam.center-state.align);
+			drive(speed, speed_corr);
 		}
 	});
 
