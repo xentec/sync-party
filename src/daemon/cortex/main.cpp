@@ -144,8 +144,8 @@ int main(int argc, const char* argv[])
 			auto speed_corr = control_state.speed = speed;
 
 			if(conf.is_slave)
-                speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
-
+                		speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
+			
 			logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, control_state.gap);
 
 			if(driver)
@@ -189,9 +189,12 @@ int main(int argc, const char* argv[])
 		if(control_state.steer_pwm != pwm)
 		{
 			auto pwm_corr = control_state.steer_pwm = pwm;
-			if(conf.is_slave)
+			if(conf.is_slave){
 				pwm_corr = adjust_steer(pwm, control_state.gap);
-
+			}
+			else if(pwm > 1784638){
+				pwm_corr = 1784638;	
+			}
 			logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm, pwm_corr, control_state.gap);
 			if(steering)
 				steering->set_duty_cycle(pwm_corr);
@@ -199,7 +202,7 @@ int main(int argc, const char* argv[])
 			if(conf.is_slave && control_state.speed != proto::Speed::STOP)
 			{
 				auto speed = control_state.speed;
-                auto speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
+               			auto speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
 				logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, control_state.gap);
 
 				if(driver)
