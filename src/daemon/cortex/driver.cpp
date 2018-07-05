@@ -261,31 +261,3 @@ void Driver::on_packet(u8 type, u8 value)
 			break;
 	}
 }
-
-
-
-recur_timer::recur_timer(io_context &ioctx)
-	: timer(ioctx)
-{}
-
-void recur_timer::start(steady_timer::duration interval, TimerCB cb)
-{
-	fn = cb;
-	ival = interval;
-	run({});
-}
-
-void recur_timer::stop()
-{
-	timer.cancel();
-}
-
-void recur_timer::run(error_code ec)
-{
-	fn(ec);
-
-	if(ec) return;
-
-	timer.expires_from_now(ival);
-	timer.async_wait([this](auto ec) { run(ec); });
-}

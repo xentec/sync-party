@@ -10,6 +10,8 @@ add_library(${TARGET_NAME} STATIC
 	opts.hpp
 	opts.cpp
 	logger.hpp
+	timer.hpp
+	timer.cpp
 	types.hpp
 	util.hpp
 )
