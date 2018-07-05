@@ -1,8 +1,8 @@
 #pragma once
 
 #include "asio.hpp"
-#include "types.hpp"
 #include "logger.hpp"
+#include "types.hpp"
 
 #include <boost/asio/streambuf.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
@@ -37,10 +37,11 @@ struct Controller
 
 private:
 	void recv_start();
-	void recv_handle_js(error_code ec, usz len);
-	void recv_handle_kb(error_code ec, usz len);
+	void recv_handle(std::error_code ec, usz len);
+	void recv_handle_js(std::error_code ec, usz len);
+	void recv_handle_kb(std::error_code ec, usz len);
 
-	std::function<void(error_code ec, usz len)> recv_handle;
+	std::function<void(std::error_code ec, usz len)> recv_handler;
 
 	loggr logger;
 	Type type;

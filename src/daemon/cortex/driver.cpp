@@ -73,22 +73,22 @@ void Driver::drive(u8 speed)
 		wd_feed({});
 }
 
-void Driver::gap(u8 sensor, std::function<void(error_code, u8)> callback)
+void Driver::gap(u8 sensor, std::function<void(std::error_code, u8)> callback)
 {
 	send(Type::ULTRA_SONIC, sensor, callback);
 }
 
-void Driver::analog(u8 pin, std::function<void (error_code, u8)> callback)
+void Driver::analog(u8 pin, std::function<void (std::error_code, u8)> callback)
 {
 	send(Type::ANALOG, pin, callback);
 }
 
-void Driver::version(std::function<void (error_code, u8)> callback)
+void Driver::version(std::function<void (std::error_code, u8)> callback)
 {
 	send(Type::VERSION, 0, callback);
 }
 
-void Driver::wd_feed(error_code err)
+void Driver::wd_feed(std::error_code err)
 {
 	send(Type::MOTOR, speed_ctrl.curr);
 
@@ -97,7 +97,7 @@ void Driver::wd_feed(error_code err)
 	speed_ctrl.feeder.async_wait([this](auto ec){ wd_feed(ec); });
 }
 
-void Driver::send(Type type, u8 value, std::function<void(error_code, u8 cm)> cb)
+void Driver::send(Type type, u8 value, std::function<void(std::error_code, u8 cm)> cb)
 {
 	if(q.size() > 16 && !(type == Type::MOTOR && value == Speed::STOP))
 	{
@@ -126,7 +126,7 @@ void Driver::send_start()
 	dev.async_write_some(buf_w.data(), [this](auto ec, usz len){ send_handle(ec, len); });
 }
 
-void Driver::send_handle(error_code ec, usz len)
+void Driver::send_handle(std::error_code ec, usz len)
 {
 //	logger->trace("SEND END ({})", len);
 	if(ec && !q.empty())
@@ -160,7 +160,7 @@ void Driver::timeout_handle()
 		send_start();
 	} else if(!q.empty())
 	{
-		q.front().cb(boost::system::errc::make_error_code(boost::system::errc::timed_out), {});
+		q.front().cb(std::make_error_code(std::errc::timed_out), {});
 		q.pop_front();
 	}
 }
@@ -171,7 +171,7 @@ void Driver::recv_start()
 	dev.async_read_some(buf_r.prepare(32), [this](auto ec, usz len) { recv_handle(ec, len); });
 }
 
-void Driver::recv_handle(error_code ec, usz len)
+void Driver::recv_handle(std::error_code ec, usz len)
 {
 	if(ec)
 	{
@@ -251,7 +251,7 @@ void Driver::on_packet(u8 type, u8 value)
 			if(!err)
 				r.cb({}, value);
 			else
-				r.cb(boost::system::errc::make_error_code(boost::system::errc::protocol_error), {});
+				r.cb(std::make_error_code(std::errc::protocol_error), {});
 		}
 
 		q.pop_front();

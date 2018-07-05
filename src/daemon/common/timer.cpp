@@ -17,7 +17,7 @@ void Timer::stop()
 	timer.cancel();
 }
 
-void Timer::run(error_code ec)
+void Timer::run(std::error_code ec)
 {
 	fn(ec);
 

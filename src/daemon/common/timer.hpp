@@ -10,11 +10,11 @@ struct Timer
 {
 	Timer(io_context &ioctx);
 
-	using TimerCB = std::function<void(error_code)>;
+	using TimerCB = std::function<void(std::error_code)>;
 	void start(steady_timer::duration interval, TimerCB cb);
 	void stop();
 private:
-	void run(error_code ec);
+	void run(std::error_code ec);
 
 	TimerCB fn;
 	steady_timer timer;

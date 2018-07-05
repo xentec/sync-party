@@ -16,8 +16,8 @@ Controller::Controller(io_context& ctx, Type type, const char* dev_path)
 
 	switch(type)
 	{
-	case Type::Joystick: recv_handle = [this](auto e, auto l) { recv_handle_js(e,l); }; break;
-	case Type::Keyboard: recv_handle = [this](auto e, auto l) { recv_handle_kb(e,l); }; break;
+	case Type::Joystick: recv_handler = [this](auto e, auto l) { recv_handle_js(e,l); }; break;
+	case Type::Keyboard: recv_handler = [this](auto e, auto l) { recv_handle_kb(e,l); }; break;
 	default: break;
 	}
 
@@ -31,17 +31,22 @@ Controller::Type Controller::get_type() const
 
 void Controller::recv_start()
 {
-	sd.async_read_some(buf.prepare(64), recv_handle);
+	sd.async_read_some(buf.prepare(64), [this](auto ec, auto len) { recv_handle(ec, len); });
 }
 
-void Controller::recv_handle_js(error_code ec, usz len)
+void Controller::recv_handle(std::error_code ec, usz len)
 {
 	if(ec)
 	{
-		logger->error("failed to read from controller: {}", ec.message());
+		logger->error("failed to read: {}", ec.message());
 		return;
 	}
 
+	recv_handler(ec, len);
+}
+
+void Controller::recv_handle_js(std::error_code, usz len)
+{
 	constexpr usz pkt_size = sizeof(js_event);
 
 	buf.commit(len);
@@ -59,14 +64,8 @@ void Controller::recv_handle_js(error_code ec, usz len)
 	recv_start();
 }
 
-void Controller::recv_handle_kb(error_code ec, usz len)
+void Controller::recv_handle_kb(std::error_code, usz len)
 {
-	if(ec)
-	{
-		logger->error("failed to read from controller: {}", ec.message());
-		return;
-	}
-
 	constexpr usz pkt_size = sizeof(input_event);
 
 	buf.commit(len);
