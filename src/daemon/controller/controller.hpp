@@ -5,6 +5,7 @@
 #include "types.hpp"
 
 #include <boost/asio/streambuf.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
 
 struct Controller
@@ -28,12 +29,13 @@ struct Controller
 	static constexpr i16 axis_min = std::numeric_limits<i16>::min() + 1;
 	static constexpr i16 axis_max = std::numeric_limits<i16>::max();
 
-	Controller(io_context& ctx, Type type, const char* dev_path);
+	Controller(io_context& ctx, Type type, const std::string& dev_path);
 
 	Type get_type() const;
 
 	std::function<void(u32 time, Axis num, i16 val)> on_axis;
 	std::function<void(u32 time, u32 keycode, KeyState val)> on_key;
+	std::function<void(std::error_code ec)> on_err;
 
 private:
 	void recv_start();
@@ -47,5 +49,9 @@ private:
 	Type type;
 	posix::stream_descriptor sd;
 	streambuf buf;
+
+	std::string dev_path;
+	steady_timer timer_recover;
+	std::error_code dev_open();
 };
 
