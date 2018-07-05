@@ -10,7 +10,7 @@ struct Echo
 {
 	Echo(io_context& ioctx, u16 port, std::string payload, std::chrono::steady_clock::duration interval);
 private:
-	void broadcast(error_code ec);
+	void broadcast(std::error_code ec);
 
 	ip::udp::socket socket;
 	ip::udp::endpoint ep;

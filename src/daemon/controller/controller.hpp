@@ -1,10 +1,11 @@
 #pragma once
 
 #include "asio.hpp"
-#include "types.hpp"
 #include "logger.hpp"
+#include "types.hpp"
 
 #include <boost/asio/streambuf.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
 
 struct Controller
@@ -28,23 +29,29 @@ struct Controller
 	static constexpr i16 axis_min = std::numeric_limits<i16>::min() + 1;
 	static constexpr i16 axis_max = std::numeric_limits<i16>::max();
 
-	Controller(io_context& ctx, Type type, const char* dev_path);
+	Controller(io_context& ctx, Type type, const std::string& dev_path);
 
 	Type get_type() const;
 
 	std::function<void(u32 time, Axis num, i16 val)> on_axis;
 	std::function<void(u32 time, u32 keycode, KeyState val)> on_key;
+	std::function<void(std::error_code ec)> on_err;
 
 private:
 	void recv_start();
-	void recv_handle_js(error_code ec, usz len);
-	void recv_handle_kb(error_code ec, usz len);
+	void recv_handle(std::error_code ec, usz len);
+	void recv_handle_js(std::error_code ec, usz len);
+	void recv_handle_kb(std::error_code ec, usz len);
 
-	std::function<void(error_code ec, usz len)> recv_handle;
+	std::function<void(std::error_code ec, usz len)> recv_handler;
 
 	loggr logger;
 	Type type;
 	posix::stream_descriptor sd;
 	streambuf buf;
+
+	std::string dev_path;
+	steady_timer timer_recover;
+	std::error_code dev_open();
 };
 

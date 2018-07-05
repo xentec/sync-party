@@ -5,7 +5,7 @@ PASS="0987654321"
 IFACE=wlan0
 
 if [ $(id -u) -ne 0 ]; then
-	echo This must be run as root!
+    echo This must be run as root!
 	exit 1
 fi
 
@@ -13,12 +13,13 @@ ACTION=$1
 shift
 
 case $ACTION in
-	off)
-		create_ap --stop $IFACE
+    off)
+	    create_ap --stop $IFACE
+		sleep 2
 		systemctl start netctl-auto@$IFACE
 	;;
 	*)
-		systemctl stop netctl-auto@$IFACE
+	    systemctl stop netctl-auto@$IFACE
 		create_ap --daemon -n $IFACE "$SSID" "$PASS"
 	;;
 esac
