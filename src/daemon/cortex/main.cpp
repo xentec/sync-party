@@ -4,6 +4,7 @@
 #include "echo.hpp"
 #include "logger.hpp"
 #include "opts.hpp"
+#include "timer.hpp"
 #include "types.hpp"
 #include "util.hpp"
 
@@ -86,7 +87,7 @@ int main(int argc, const char* argv[])
 	struct {
 		std::unique_ptr<SyncCamera> driver;
 		std::thread thread;
-        std::atomic<int> value;
+		std::atomic<int> value;
 		int center = 0;
 	} cam;
 
@@ -106,24 +107,24 @@ int main(int argc, const char* argv[])
 
 				logger->info("cam {} initialized", 0);
 
-                cam.value.store(0);
+				cam.value.store(0);
 
-				auto cam_timer = std::make_shared<recur_timer>(ioctx);
+				auto cam_timer = std::make_shared<Timer>(ioctx);
 				cam_timer->start(std::chrono::milliseconds(500), [&, cam_timer](auto ec)
 				{
 					if(ec) return;
-                    control_state.align = cam.value.load();
-                    if(cam.center==0 && control_state.align>0) {
-                        cam.center=control_state.align;
-                        logger->info("CAM initialized to: {}",cam.center);
-                    }
-                    if(cam.center!=0 && control_state.align>=0) {
-                        logger->debug("CAM value: {}, diff: {}", control_state.align, cam.center-control_state.align);
-                    }
-                    if(cam.center!=0 && control_state.align<0) {
-                        cam.center=0;
-                        logger->debug("CAM pattern lost, err: {}", control_state.align);
-                    }
+					control_state.align = cam.value.load();
+					if(cam.center==0 && control_state.align>0) {
+						cam.center=control_state.align;
+						logger->info("CAM initialized to: {}",cam.center);
+					}
+					if(cam.center!=0 && control_state.align>=0) {
+						logger->debug("CAM value: {}, diff: {}", control_state.align, cam.center-control_state.align);
+					}
+					if(cam.center!=0 && control_state.align<0) {
+						cam.center=0;
+						logger->debug("CAM pattern lost, err: {}", control_state.align);
+					}
 
 				});
 			}
@@ -147,8 +148,8 @@ int main(int argc, const char* argv[])
 			auto speed_corr = control_state.speed = speed;
 
 			if(conf.is_slave)
-                		speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
-			
+				speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
+
 			logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, control_state.gap);
 
 			if(driver)
@@ -158,7 +159,7 @@ int main(int argc, const char* argv[])
 
 	if(driver && conf.is_slave)
 	{
-		auto gap_timer = std::make_shared<recur_timer>(ioctx);
+		auto gap_timer = std::make_shared<Timer>(ioctx);
 		gap_timer->start(std::chrono::milliseconds(100), [&, gap_timer](auto ec)
 		{
 			if(ec) return;
@@ -196,7 +197,7 @@ int main(int argc, const char* argv[])
 				pwm_corr = adjust_steer(pwm, control_state.gap);
 			}
 			else if(pwm > 1713876){
-				pwm_corr = 1713876;	
+				pwm_corr = 1713876;
 			}
 			logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm, pwm_corr, control_state.gap);
 			if(steering)
@@ -205,7 +206,7 @@ int main(int argc, const char* argv[])
 			if(conf.is_slave && control_state.speed != proto::Speed::STOP)
 			{
 				auto speed = control_state.speed;
-               			auto speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
+				auto speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
 				logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, control_state.gap);
 
 				if(driver)
