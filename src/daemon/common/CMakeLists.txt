@@ -34,7 +34,6 @@ target_link_libraries(${TARGET_NAME}
 	    ${CMAKE_THREAD_LIBS_INIT}
 		${Boost_LIBRARIES}
 		argh
-		fmt
 		spdlog
 		mqtt_cpp
 )
