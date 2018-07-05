@@ -55,6 +55,11 @@ void MQTTClient::connect(std::function<void (bool, u8)> cb)
 
 		return true;
 	});
+	client->connect([this](auto ec)
+	{
+		if(ec)
+			logger->error("failed to connect: {}", ec.message());
+	});
 }
 
 void MQTTClient::subscribe(const std::string &topic, u8 qos, SubCB cb)
