@@ -1,6 +1,5 @@
 #pragma once
 
-#define SPDLOG_FMT_EXTERNAL
 #define SPDLOG_TRACE_ON
 #define SPDLOG_DEBUG_ON
 //#define SPDLOG_ENABLE_SYSLOG
