@@ -23,7 +23,7 @@
  * mqtt -> driver, steering
 */
 
-#define MAXARRAY 5
+#define GAP_ARRAY_LEN 5
 static std::string NAME = "sp-drv-0";
 
 loggr logger;
@@ -85,6 +85,7 @@ int main(int argc, const char* argv[])
 
 	auto steer = [&](auto pwm, auto pwm_corr)
 	{
+		control_state.steer_pwm = pwm_corr;
 		logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm, pwm_corr, control_state.gap);
 		if(steering)
 			steering->set_duty_cycle(pwm_corr);
@@ -92,8 +93,8 @@ int main(int argc, const char* argv[])
 
 	auto drive = [&](auto speed, auto speed_corr)
 	{
+		control_state.speed = speed_corr;
 		logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, control_state.gap);
-
 		if(driver)
 			driver->drive(speed_corr);
 	};
@@ -171,12 +172,12 @@ int main(int argc, const char* argv[])
 
 		if(control_state.speed != speed)
 		{
-			auto speed_corr = control_state.speed = speed;
+			auto speed_corr = speed;
 
 			if(conf.is_slave)
-
 				speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
-				drive(speed, speed_corr);
+
+			drive(speed, speed_corr);
 		}
 	});
 
@@ -188,7 +189,7 @@ int main(int argc, const char* argv[])
 			if(ec) return;
 
 			static u8 pin = 7, i = 0, init = 0;
-			static std::array<u8,MAXARRAY> values;
+			static std::array<u8, GAP_ARRAY_LEN> values;
 
 			driver->gap(pin, [&](auto ec, u8 cm)
 			{
@@ -216,15 +217,15 @@ int main(int argc, const char* argv[])
 #endif
 					} else
 					{
-						if(i>=MAXARRAY) {
+						if(i >= values.size()) {
 							i=0;
 						}
 						values[i] = cm;
 						i++;
 
-						std::array<u8,MAXARRAY> hilfarray = values;
-						std::sort(hilfarray.begin(), hilfarray.end());
-						auto median = hilfarray[MAXARRAY/2];
+						auto a = values;
+						std::sort(a.begin(), a.end());
+						auto median = a[a.size()/2];
 
 						auto pwm_corr = control_state.steer_pwm;
 						if(control_state.gap > median){
@@ -232,6 +233,7 @@ int main(int argc, const char* argv[])
 						}else if(control_state.gap < median){
 							pwm_corr -= 30000;
 						}
+						control_state.gap = median;
 						steer(control_state.steer_pwm, pwm_corr);
 					}
 				}
