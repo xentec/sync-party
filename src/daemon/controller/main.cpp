@@ -61,6 +61,12 @@ int main(int argc, const char* argv[])
 	auto motor = [&](i32 v) { on_change(v, [&](auto v){ forward(def::MOTOR_SUB, v); }); };
 	auto steer = [&](i32 v) { on_change(v, [&](auto v){ forward(def::STEER_SUB, v); }); };
 
+	ctrl.on_err = [&](auto)
+	{
+		motor(0);
+		steer(0);
+	};
+
 	ctrl.on_axis = [&](u32, Controller::Axis num, i16 val)
 	{
 		static std::unordered_map<Controller::Axis, i16> input_state

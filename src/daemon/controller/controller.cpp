@@ -3,17 +3,14 @@
 #include <linux/input.h>
 #include <linux/joystick.h>
 
-Controller::Controller(io_context& ctx, Type type, const char* dev_path)
+
+Controller::Controller(io_context& ctx, Type type, const std::string &dev_path)
 	: logger(slog::stdout_color_st("ctrl"))
 	, type(type)
 	, sd(ctx)
+	, dev_path(dev_path)
+	, timer_recover(ctx)
 {
-	int fd = open(dev_path, O_RDONLY | O_NONBLOCK);
-	if(0> fd)
-		throw std::system_error(errno, std::system_category(), "open");
-
-	sd.assign(fd);
-
 	switch(type)
 	{
 	case Type::Joystick: recv_handler = [this](auto e, auto l) { recv_handle_js(e,l); }; break;
@@ -21,7 +18,31 @@ Controller::Controller(io_context& ctx, Type type, const char* dev_path)
 	default: break;
 	}
 
+	auto ec = dev_open();
+	if(ec)
+	{
+		logger->error("failed to open {}: {}", dev_path, ec.message());
+		logger->info("trying to recover...");
+	}
+}
+
+std::error_code Controller::dev_open()
+{
+	int fd = open(dev_path.c_str(), O_RDONLY | O_NONBLOCK);
+	if(0> fd)
+	{
+		auto ec = std::error_code(errno, std::system_category());
+		logger->debug("failed to open {}: {}", dev_path, ec.message());
+
+		timer_recover.expires_after(std::chrono::seconds(1));
+		timer_recover.async_wait([this](auto ec) { if(!ec) dev_open(); });
+		return ec;
+	}
+
+	sd.assign(fd);
 	recv_start();
+
+	return {};
 }
 
 Controller::Type Controller::get_type() const
@@ -38,7 +59,16 @@ void Controller::recv_handle(std::error_code ec, usz len)
 {
 	if(ec)
 	{
+		if(ec == std::errc::operation_canceled) return;
+
 		logger->error("failed to read: {}", ec.message());
+		if(on_err) on_err(ec);
+		if(ec == std::errc::no_such_device)
+		{
+			sd.close();
+			dev_open();
+		}
+
 		return;
 	}
 
