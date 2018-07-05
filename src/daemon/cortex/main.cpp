@@ -80,24 +80,24 @@ int main(int argc, const char* argv[])
 		u8 speed_prev = proto::Speed::STOP;
 		u8 gap = conf.gap_test;
 		i32 align = 0;
-	} control_state;
+	} state;
 
 	auto steer = [&](auto pwm_corr, auto pwm_old)
 	{
-		if(control_state.steer_pwm == pwm_corr) return;
+		if(state.steer_pwm == pwm_corr) return;
 
-		control_state.steer_pwm = pwm_corr;
-		logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm_old, pwm_corr, control_state.gap);
+		state.steer_pwm = pwm_corr;
+		logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm_old, pwm_corr, state.gap);
 		if(steering)
 			steering->set_duty_cycle(pwm_corr);
 	};
 
 	auto drive = [&](auto speed_corr, auto speed_old)
 	{
-		if(control_state.speed == speed_corr) return;
+		if(state.speed == speed_corr) return;
 
-		control_state.speed = speed_corr;
-		logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed_old, speed_corr, control_state.gap);
+		state.speed = speed_corr;
+		logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed_old, speed_corr, state.gap);
 		if(driver)
 			driver->drive(speed_corr);
 	};
@@ -132,29 +132,29 @@ int main(int argc, const char* argv[])
 				{
 					if(ec) return;
 
-					control_state.align = cam.value.load();
-					if(cam.center==0 && control_state.align>0) {
-						cam.center=control_state.align;
+					state.align = cam.value.load();
+					if(cam.center==0 && state.align>0) {
+						cam.center=state.align;
 						logger->info("CAM initialized to: {}",cam.center);
 					}
-					if(cam.center!=0 && control_state.align>=0) {
-						logger->debug("CAM value: {}, diff: {}", control_state.align, cam.center-control_state.align);
+					if(cam.center!=0 && state.align>=0) {
+						logger->debug("CAM value: {}, diff: {}", state.align, cam.center-state.align);
 
-						if(conf.is_slave && control_state.speed != proto::Speed::STOP)
+						if(conf.is_slave && state.speed != proto::Speed::STOP)
 						{
-							auto speed_corr = control_state.speed;
-                            if(std::abs(cam.center-control_state.align)<=3) {}
-                            else if(0 > cam.center-control_state.align)
+							auto speed_corr = state.speed;
+							if(std::abs(cam.center-state.align)<=3) {}
+							else if(0 > cam.center-state.align)
 								speed_corr += 2;
-                            else if(0 < cam.center-control_state.align)
+							else if(0 < cam.center-state.align)
 								speed_corr -= 2;
 
-							drive(speed_corr, control_state.speed);
+							drive(speed_corr, state.speed);
 						}
 					}
-					if(cam.center!=0 && control_state.align<0) {
+					if(cam.center!=0 && state.align<0) {
 						cam.center=0;
-						logger->debug("CAM pattern lost, err: {}", control_state.align);
+						logger->debug("CAM pattern lost, err: {}", state.align);
 					}
 
 
@@ -176,12 +176,12 @@ int main(int argc, const char* argv[])
 								def::MOTOR_SCALE.min, 0, def::MOTOR_SCALE.max,
 								Speed::BACK_FULL, Speed::STOP, Speed::FORWARD_FULL);
 
-		if(control_state.speed != speed)
+		if(state.speed != speed)
 		{
 			auto speed_corr = speed;
 
 			if(conf.is_slave)
-				speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
+				speed_corr = adjust_speed(state.steer_pwm, speed, state.gap, cam.center-state.align);
 
 			drive(speed_corr, speed);
 		}
@@ -205,7 +205,7 @@ int main(int argc, const char* argv[])
 				{
 					if(!init) {
 						values.fill(cm);
-						control_state.gap = cm;
+						state.gap = cm;
 						init = 1;
 					} else
 					{
@@ -219,14 +219,14 @@ int main(int argc, const char* argv[])
 						std::sort(a.begin(), a.end());
 						auto median = a[a.size()/2];
 
-						auto pwm_corr = control_state.steer_pwm;
-						if(control_state.gap > median){
+						auto pwm_corr = state.steer_pwm;
+						if(state.gap > median){
 							pwm_corr += 30000;
-						}else if(control_state.gap < median){
+						}else if(state.gap < median){
 							pwm_corr -= 30000;
 						}
-						control_state.gap = median;
-						steer(control_state.steer_pwm, pwm_corr);
+						state.gap = median;
+						steer(state.steer_pwm, pwm_corr);
 					}
 				}
 			});
@@ -245,21 +245,21 @@ int main(int argc, const char* argv[])
 					  def::STEER_SCALE.min, def::STEER_SCALE.max,
 					  def::STEER_DC_SCALE.min, def::STEER_DC_SCALE.max);
 
-		if(control_state.steer_pwm != pwm)
+		if(state.steer_pwm != pwm)
 		{
-			auto pwm_corr = control_state.steer_pwm = pwm;
+			auto pwm_corr = state.steer_pwm = pwm;
 			if(conf.is_slave){
-				pwm_corr = adjust_steer(pwm, control_state.gap);
+				pwm_corr = adjust_steer(pwm, state.gap);
 			}
 			else if(pwm > 1713876){
 				pwm_corr = 1713876;
 			}
 			steer(pwm, pwm_corr);
 
-			if(conf.is_slave && control_state.speed != proto::Speed::STOP)
+			if(conf.is_slave && state.speed != proto::Speed::STOP)
 			{
-				auto speed = control_state.speed;
-				auto speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
+				auto speed = state.speed;
+				auto speed_corr = adjust_speed(state.steer_pwm, speed, state.gap, cam.center-state.align);
 				drive(speed, speed_corr);
 			}
 		}
