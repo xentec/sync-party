@@ -79,25 +79,31 @@ int main(int argc, const char* argv[])
 	struct {
 		u32 steer_pwm = def::STEER_DC_DEF;
 		u8 speed = proto::Speed::STOP;
+		u8 speed_prev = proto::Speed::STOP;
 		u8 gap = conf.gap_test;
 		i32 align = 0;
 	} control_state;
 
-	auto steer = [&](auto pwm, auto pwm_corr)
+	auto steer = [&](auto pwm_corr, auto pwm_old)
 	{
+		if(control_state.steer_pwm == pwm_corr) return;
+
 		control_state.steer_pwm = pwm_corr;
-		logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm, pwm_corr, control_state.gap);
+		logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm_old, pwm_corr, control_state.gap);
 		if(steering)
 			steering->set_duty_cycle(pwm_corr);
 	};
 
-	auto drive = [&](auto speed, auto speed_corr)
+	auto drive = [&](auto speed_corr, auto speed_old)
 	{
+		if(control_state.speed == speed_corr) return;
+
 		control_state.speed = speed_corr;
-		logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, control_state.gap);
+		logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed_old, speed_corr, control_state.gap);
 		if(driver)
 			driver->drive(speed_corr);
 	};
+
 
 	struct {
 		std::unique_ptr<SyncCamera> driver;
@@ -145,7 +151,7 @@ int main(int argc, const char* argv[])
                             else if(0 < cam.center-control_state.align)
 								speed_corr -= 2;
 
-							drive(control_state.speed, speed_corr);
+							drive(speed_corr, control_state.speed);
 						}
 					}
 					if(cam.center!=0 && control_state.align<0) {
@@ -177,7 +183,7 @@ int main(int argc, const char* argv[])
 			if(conf.is_slave)
 				speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
 
-			drive(speed, speed_corr);
+			drive(speed_corr, speed);
 		}
 	});
 

@@ -21,13 +21,13 @@ O map_dual(I x, I in_min, I in_max, O out_min, O out_max)
 	return map_dual(x, in_min, I(0), in_max, out_min, O(0), out_max);
 }
 
-template<class T, class Fn>
-void on_change(const T& v, Fn fn)
+template<class T, class ...Args, class Fn>
+void on_change(const T& v, Args ...args, Fn fn)
 {
 	static T prev {};
 	if(prev != v)
 	{
 		prev = v;
-		fn(v);
+		fn(v, args...);
 	}
 }
