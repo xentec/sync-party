@@ -13,7 +13,7 @@ Echo::Echo(io_context& ioctx, u16 port, std::string payload, std::chrono::steady
 	broadcast({});
 }
 
-void Echo::broadcast(error_code ec)
+void Echo::broadcast(std::error_code ec)
 {
 	if(ec) return;
 	socket.send_to(buffer(payload), ep);
