@@ -11,6 +11,7 @@
 #define SPEED_DIFF 16
 #define TO_RADIANS 0.01745
 #define TO_DEGREES 57.2958
+#define ADJUSTDEGREE 30000
 
 inline f32 deg(u32 steer)
 {
@@ -80,10 +81,10 @@ u32 adjust_steer(u32 steer, u8 gap_cm)
 	u32 new_steer = def::STEER_DC_DEF + corr;
 
 	static u8 init_cm = gap_cm;
-	if((init_cm < gap_cm) && (1230000 <= steer) && (steer < def::STEER_DC_DEF))
-		new_steer -= 30000;
-	else if((init_cm > gap_cm) && (1770000 >= steer) && (steer > def::STEER_DC_DEF))
-		new_steer += 30000;
+	if((init_cm < gap_cm) && ((def::STEER_DC_SCALE.min + ADJUSTDEGREE) <= steer) && (steer < def::STEER_DC_DEF))
+		new_steer -= ADJUSTDEGREE;
+	else if((init_cm > gap_cm) && ((def::STEER_DC_SCALE.max - ADJUSTDEGREE) >= steer) && (steer > def::STEER_DC_DEF))
+		new_steer += ADJUSTDEGREE;
 
 	return new_steer;
 }
