@@ -81,8 +81,22 @@ int main(int argc, const char* argv[])
 		u8 speed = proto::Speed::STOP;
 		u8 gap = conf.gap_test;
 		i32 align = 0;
-		std::array<u8,MAXARRAY> gap_array;
 	} control_state;
+
+	auto steer = [&](auto pwm, auto pwm_corr)
+	{
+		logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm, pwm_corr, control_state.gap);
+		if(steering)
+			steering->set_duty_cycle(pwm_corr);
+	};
+
+	auto drive = [&](auto speed, auto speed_corr)
+	{
+		logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, control_state.gap);
+
+		if(driver)
+			driver->drive(speed_corr);
+	};
 
 	struct {
 		std::unique_ptr<SyncCamera> driver;
@@ -90,7 +104,6 @@ int main(int argc, const char* argv[])
 		std::atomic<int> value;
 		int center = 0;
 	} cam;
-
 
 	if(conf.is_slave)
 	{
@@ -114,30 +127,29 @@ int main(int argc, const char* argv[])
 				{
 					if(ec) return;
 
-                    control_state.align = cam.value.load();
-                    if(cam.center==0 && control_state.align>0) {
-                        cam.center=control_state.align;
-                        logger->info("CAM initialized to: {}",cam.center);
-                    }
-                    if(cam.center!=0 && control_state.align>=0) {
-                        logger->debug("CAM value: {}, diff: {}", control_state.align, cam.center-control_state.align);
-						
+					control_state.align = cam.value.load();
+					if(cam.center==0 && control_state.align>0) {
+						cam.center=control_state.align;
+						logger->info("CAM initialized to: {}",cam.center);
+					}
+					if(cam.center!=0 && control_state.align>=0) {
+						logger->debug("CAM value: {}, diff: {}", control_state.align, cam.center-control_state.align);
+
 						if(conf.is_slave && control_state.speed != proto::Speed::STOP)
 						{
 							auto speed_corr = control_state.speed;
 							if(0 < cam.center-control_state.align)
-      							speed_corr += 2;
-    						else if(0 > cam.center-control_state.align)
-        						speed_corr -= 2;
+								speed_corr += 2;
+							else if(0 > cam.center-control_state.align)
+								speed_corr -= 2;
 
-							if(driver)
-								driver->drive(speed_corr);
-                    	}
+							drive(control_state.speed, speed_corr);
+						}
 					}
-                    if(cam.center!=0 && control_state.align<0) {
-                        cam.center=0;
-                        logger->debug("CAM pattern lost, err: {}", control_state.align);
-                    }
+					if(cam.center!=0 && control_state.align<0) {
+						cam.center=0;
+						logger->debug("CAM pattern lost, err: {}", control_state.align);
+					}
 
 
 				});
@@ -163,12 +175,7 @@ int main(int argc, const char* argv[])
 			if(conf.is_slave)
 
 				speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
-
-
-			logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, control_state.gap);
-
-			if(driver)
-				driver->drive(speed_corr);
+				drive(speed, speed_corr);
 		}
 	});
 
@@ -179,10 +186,8 @@ int main(int argc, const char* argv[])
 		{
 			if(ec) return;
 
-			static u8 pin = 7;
-			static i = 0;
-			static init = 0;
-			static gap_init = 0;
+			static u8 pin = 7, i = 0, init = 0;
+			static std::array<u8,MAXARRAY> values;
 
 			driver->gap(pin, [&](auto ec, u8 cm)
 			{
@@ -190,41 +195,43 @@ int main(int argc, const char* argv[])
 					logger->debug("GAP ERR {} ", ec.message());
 				else
 				{
-					control_state.gap = cm;
-
 					if(!init) {
+						values.fill(cm);
+						control_state.gap = cm;
+						init = 1;
+
+#if 0
 						if(i >= MAXARRAY) {
 							i=0;
 							init = 1;
-						
-							std::array<u8,MAXARRAY> hilfarray = control_state.gap_array;
-							std::sort(hilfarray.begin(), hilfarray.end());
-							gap_init = hilfarray[MAXARRAY/2];	
-						}
-					
-						control_state.gap_array[i] = cm;
-						i++;
-					}
 
-					auto pwm_corr = control_state.steer_pwm = pwm;
-					if(conf.is_slave && init){
+							std::array<u8,MAXARRAY> hilfarray = values;
+							std::sort(hilfarray.begin(), hilfarray.end());
+							control_state.gap = hilfarray[MAXARRAY/2];
+						}
+
+						values[i] = cm;
+						i++;
+#endif
+					} else
+					{
 						if(i>=MAXARRAY) {
 							i=0;
 						}
-						control_state.gap_array[i] = cm;
+						values[i] = cm;
 						i++;
 
-						std::array<u8,MAXARRAY> hilfarray = control_state.gap_array;
+						std::array<u8,MAXARRAY> hilfarray = values;
 						std::sort(hilfarray.begin(), hilfarray.end());
 						auto median = hilfarray[MAXARRAY/2];
+
 						auto pwm_corr = control_state.steer_pwm;
-						if(gap_init > median){
-							pwm_corr += 30000
-						}else if(gab_init < median){
-							pwm_corr -= 30000
+						if(control_state.gap > median){
+							pwm_corr += 30000;
+						}else if(control_state.gap < median){
+							pwm_corr -= 30000;
 						}
-						if(steering)
-							steering->set_duty_cycle(pwm_corr);
+						steer(control_state.steer_pwm, pwm_corr);
 					}
 				}
 			});
@@ -252,20 +259,13 @@ int main(int argc, const char* argv[])
 			else if(pwm > 1713876){
 				pwm_corr = 1713876;
 			}
-			logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm, pwm_corr, control_state.gap);
-			if(steering)
-				steering->set_duty_cycle(pwm_corr);
+			steer(pwm, pwm_corr);
 
 			if(conf.is_slave && control_state.speed != proto::Speed::STOP)
 			{
 				auto speed = control_state.speed;
-
 				auto speed_corr = adjust_speed(control_state.steer_pwm, speed, control_state.gap, cam.center-control_state.align);
-
-				logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, control_state.gap);
-
-				if(driver)
-					driver->drive(speed_corr);
+				drive(speed, speed_corr);
 			}
 		}
 	});
