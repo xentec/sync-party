@@ -63,13 +63,19 @@ u8 adjust_speed(u32 steer, u8 speed, u8 gap_cm, int cam)
 u32 adjust_steer(u32 steer, u8 gap_cm)
 {
 	const f32 degree = deg(steer);
-	const u32 gap_mm = gap_cm * 10 + CAR_WIDTH;
+	const u32 gap_mm = gap_cm * 10;
 
-	const f32 r2 = (CAR_LENGTH / std::sin(degree * TO_RADIANS)) + gap_mm;
-	f32 corr = 15000 * std::asin(CAR_LENGTH / r2) * TO_DEGREES;
+	f32 corr = 0;
 
-    if(steer < def::STEER_DC_DEF)
-		corr = -corr;
+	if(steer < def::STEER_DC_DEF){
+		const f32 r2 = (CAR_LENGTH / std::sin(degree * TO_RADIANS)) + gap_mm + CAR_WIDTH;
+		corr = -(15000 * std::asin(CAR_LENGTH / r2) * TO_DEGREES);		
+	}
+	else if(steer > def::STEER_DC_DEF){
+		const f32 r2 = (CAR_LENGTH / std::sin(degree * TO_RADIANS)) - gap_mm;
+		corr = 15000 * std::asin(CAR_LENGTH / r2) * TO_DEGREES;
+	}
+	
 
 	u32 new_steer = def::STEER_DC_DEF + corr;
 
