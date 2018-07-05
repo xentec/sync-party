@@ -138,9 +138,10 @@ int main(int argc, const char* argv[])
 						if(conf.is_slave && control_state.speed != proto::Speed::STOP)
 						{
 							auto speed_corr = control_state.speed;
-							if(0 < cam.center-control_state.align)
+                            if(std::abs(cam.center-control_state.align)<=3) {}
+                            else if(0 > cam.center-control_state.align)
 								speed_corr += 2;
-							else if(0 > cam.center-control_state.align)
+                            else if(0 < cam.center-control_state.align)
 								speed_corr -= 2;
 
 							drive(control_state.speed, speed_corr);

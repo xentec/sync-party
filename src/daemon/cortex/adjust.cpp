@@ -50,12 +50,12 @@ u8 adjust_speed(u32 steer, u8 speed, u8 gap_cm, int cam)
 		}
 	}
 
-    if (std::abs(cam) <= 2) {
+    if (std::abs(cam) <= 3) {
 		return new_speed;
 	}
-    else if(0 < cam)
-        new_speed += 2;
     else if(0 > cam)
+        new_speed += 2;
+    else if(0 < cam)
         new_speed -= 2;
 
 	return new_speed;
