@@ -159,6 +159,12 @@ nCrunchTemp_*
 AutoTest.Net/
 
 # Latex
+Sync-Party_Dokumentation.pdf
+*.toc
+*.synctex.gz
+*.lot
+*.lof
+*.lol
 *.aux
 *.log
 *.out
