@@ -22,6 +22,7 @@ static const std::string NAME = "sp-ctrl";
 
 struct {
 	CommonOpts common;
+	def::Scale speed;
 } conf;
 
 
@@ -31,9 +32,13 @@ int main(int argc, const char* argv[])
 	slog::set_pattern("[%Y-%m-%d %H:%M:%S %L] %n: %v");
 
 	conf.common.name = NAME;
+	conf.speed = def::MOTOR_SCALE;
 
 	argh::parser opts(argc, argv);
 	parse_common_opts(opts, conf.common);
+
+	opts({"--spd-max"}, conf.speed.max) >> conf.speed.max;
+	opts({"--spd-min"}, conf.speed.min) >> conf.speed.min;
 
 	auto logger = slog::stdout_color_st("app");
 	logger->info("sp-controller v0.1");
@@ -61,6 +66,12 @@ int main(int argc, const char* argv[])
 	auto motor = [&](i32 v) { on_change(v, [&](auto v){ forward(def::MOTOR_SUB, v); }); };
 	auto steer = [&](i32 v) { on_change(v, [&](auto v){ forward(def::STEER_SUB, v); }); };
 
+	ctrl.on_err = [&](auto)
+	{
+		motor(0);
+		steer(0);
+	};
+
 	ctrl.on_axis = [&](u32, Controller::Axis num, i16 val)
 	{
 		static std::unordered_map<Controller::Axis, i16> input_state
@@ -78,11 +89,17 @@ int main(int argc, const char* argv[])
 
 		i->second = val;
 
-		logger->trace("on_axis: {:2} - {:6}", i->first, i->second);
+		//logger->trace("on_axis: {:2} - {:6}", i->first, i->second);
 
-		motor(map<i16>(input_state[Controller::RT2] - input_state[Controller::LT2],
-					   axis_min*2, axis_max*2,
-					   def::MOTOR_SCALE.min, def::MOTOR_SCALE.max));
+		i32 speed = input_state[Controller::RT2] - input_state[Controller::LT2];
+		i32 speed_mapped = map_dual(speed,
+							   axis_min*2, axis_max*2,
+							   conf.speed.min, conf.speed.max);
+
+		logger->trace("speed: {:6} -> {:4}", speed, speed_mapped);
+
+
+		motor(speed_mapped);
 		steer(map<i32, i32>(input_state[Controller::LS_H],
 							Controller::axis_min, Controller::axis_max,
 							def::STEER_SCALE.min, def::STEER_SCALE.max));

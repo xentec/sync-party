@@ -3,25 +3,46 @@
 #include <linux/input.h>
 #include <linux/joystick.h>
 
-Controller::Controller(io_context& ctx, Type type, const char* dev_path)
+
+Controller::Controller(io_context& ctx, Type type, const std::string &dev_path)
 	: logger(slog::stdout_color_st("ctrl"))
 	, type(type)
 	, sd(ctx)
+	, dev_path(dev_path)
+	, timer_recover(ctx)
 {
-	int fd = open(dev_path, O_RDONLY | O_NONBLOCK);
-	if(0> fd)
-		throw std::system_error(errno, std::system_category(), "open");
-
-	sd.assign(fd);
-
 	switch(type)
 	{
-	case Type::Joystick: recv_handle = [this](auto e, auto l) { recv_handle_js(e,l); }; break;
-	case Type::Keyboard: recv_handle = [this](auto e, auto l) { recv_handle_kb(e,l); }; break;
+	case Type::Joystick: recv_handler = [this](auto e, auto l) { recv_handle_js(e,l); }; break;
+	case Type::Keyboard: recv_handler = [this](auto e, auto l) { recv_handle_kb(e,l); }; break;
 	default: break;
 	}
 
+	auto ec = dev_open();
+	if(ec)
+	{
+		logger->error("failed to open {}: {}", dev_path, ec.message());
+		logger->info("trying to recover...");
+	}
+}
+
+std::error_code Controller::dev_open()
+{
+	int fd = open(dev_path.c_str(), O_RDONLY | O_NONBLOCK);
+	if(0> fd)
+	{
+		auto ec = std::error_code(errno, std::system_category());
+		logger->debug("failed to open {}: {}", dev_path, ec.message());
+
+		timer_recover.expires_after(std::chrono::seconds(1));
+		timer_recover.async_wait([this](auto ec) { if(!ec) dev_open(); });
+		return ec;
+	}
+
+	sd.assign(fd);
 	recv_start();
+
+	return {};
 }
 
 Controller::Type Controller::get_type() const
@@ -31,17 +52,31 @@ Controller::Type Controller::get_type() const
 
 void Controller::recv_start()
 {
-	sd.async_read_some(buf.prepare(64), recv_handle);
+	sd.async_read_some(buf.prepare(64), [this](auto ec, auto len) { recv_handle(ec, len); });
 }
 
-void Controller::recv_handle_js(error_code ec, usz len)
+void Controller::recv_handle(std::error_code ec, usz len)
 {
 	if(ec)
 	{
-		logger->error("failed to read from controller: {}", ec.message());
+		if(ec == std::errc::operation_canceled) return;
+
+		logger->error("failed to read: {}", ec.message());
+		if(on_err) on_err(ec);
+		if(ec == std::errc::no_such_device)
+		{
+			sd.close();
+			dev_open();
+		}
+
 		return;
 	}
 
+	recv_handler(ec, len);
+}
+
+void Controller::recv_handle_js(std::error_code, usz len)
+{
 	constexpr usz pkt_size = sizeof(js_event);
 
 	buf.commit(len);
@@ -59,14 +94,8 @@ void Controller::recv_handle_js(error_code ec, usz len)
 	recv_start();
 }
 
-void Controller::recv_handle_kb(error_code ec, usz len)
+void Controller::recv_handle_kb(std::error_code, usz len)
 {
-	if(ec)
-	{
-		logger->error("failed to read from controller: {}", ec.message());
-		return;
-	}
-
 	constexpr usz pkt_size = sizeof(input_event);
 
 	buf.commit(len);
