@@ -135,13 +135,12 @@ int main(int argc, const char* argv[])
 
 	fn_map.emplace(def::MOTOR_SUB, [&](const std::string& str)
 	{
-		i32 input = std::atoi(str.c_str());
+		using proto::Speed;
 
-		u8 speed = proto::Speed::STOP;
-		if(input < 0) // NOTE: |[STOP, BACK_FULL]| != |[STOP, FORWARD_FULL]|
-			speed = map<u8>(input, def::MOTOR_SCALE.min, 0, proto::Speed::BACK_FULL, proto::Speed::STOP);
-		else if(input > 0)
-			speed = map<u8>(input, 0, def::MOTOR_SCALE.max, proto::Speed::STOP, proto::Speed::FORWARD_FULL);
+		i32 input = std::atoi(str.c_str());
+		u8 speed = map_dual<u8>(input,
+								def::MOTOR_SCALE.min, 0, def::MOTOR_SCALE.max,
+								Speed::BACK_FULL, Speed::STOP, Speed::FORWARD_FULL);
 
 		if(control_state.speed != speed)
 		{
