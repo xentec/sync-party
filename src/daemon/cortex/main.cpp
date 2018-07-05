@@ -195,8 +195,8 @@ int main(int argc, const char* argv[])
 			if(conf.is_slave){
 				pwm_corr = adjust_steer(pwm, control_state.gap);
 			}
-			else if(pwm > 1784638){
-				pwm_corr = 1784638;	
+			else if(pwm > 1713876){
+				pwm_corr = 1713876;	
 			}
 			logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm, pwm_corr, control_state.gap);
 			if(steering)
