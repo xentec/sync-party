@@ -16,8 +16,6 @@
 #include <mqtt/client.hpp>
 #include <mqtt/str_connect_return_code.hpp>
 
-#include <fmt/format.h>
-
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/steady_timer.hpp>
 

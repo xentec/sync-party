@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include <fmt/format.h>
+#include <spdlog/fmt/bundled/format.h>
 #include <experimental/filesystem>
 
 namespace fs = std::experimental::filesystem;
