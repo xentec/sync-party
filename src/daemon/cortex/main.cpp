@@ -86,9 +86,10 @@ int main(int argc, const char* argv[])
 	struct {
 		std::unique_ptr<SyncCamera> driver;
 		std::thread thread;
-		std::atomic<int> value;
+        std::atomic<int> value;
 		int center = 0;
 	} cam;
+
 
 	if(conf.is_slave)
 	{
@@ -104,6 +105,8 @@ int main(int argc, const char* argv[])
 				cam.thread = std::thread([&](auto *atom){ cam.driver->start_sync_camera(atom); }, &cam.value);
 
 				logger->info("cam {} initialized", 0);
+
+                cam.value.store(0);
 
 				auto cam_timer = std::make_shared<recur_timer>(ioctx);
 				cam_timer->start(std::chrono::milliseconds(500), [&, cam_timer](auto ec)
