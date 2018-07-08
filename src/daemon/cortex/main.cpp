@@ -73,7 +73,8 @@ int main(int argc, const char* argv[])
 	auto driver = try_init<Driver>("driver", ioctx, "/dev/ttyACM0");
 	auto steering = try_init<Steering>("steering");
 
-	Adjust adj(conf.is_slave);
+
+	Adjust adj(conf.is_slave ? Adjust::Position{1,0} : Adjust::Position{0,1});
 
 	adj.drive = [&](auto speed){ on_change(speed, [&](auto speed_prev, auto speed)
 	{
