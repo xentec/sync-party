@@ -72,38 +72,15 @@ int main(int argc, const char* argv[])
 	logger->info("initialising hardware...");
 
 	auto driver = try_init<Driver>("driver", ioctx, "/dev/ttyACM0");
-	auto steering = try_init<PWM>("steering", def::STEER_DC_PERIOD);
+	auto steering = try_init<Steering>("steering");
 
 	struct {
-		i32 steer_pwm = def::STEER_DC_DEF;
+		i32 steer_deg = 0;
 		u8 speed = proto::Speed::STOP;
 		u8 speed_prev = proto::Speed::STOP;
 		i32 gap_mm = conf.gap_test;
 		i32 align = 0;
 	} state;
-
-	auto steer = [&](i32 pwm_corr, i32 pwm_old)
-	{
-		if(state.steer_pwm == pwm_corr) return;
-
-		pwm_corr = clamp(pwm_corr, def::STEER_DC_SCALE.min, def::STEER_DC_SCALE.max);
-
-		state.steer_pwm = pwm_corr;
-		logger->debug("HW: steer: {:7} -> {:7} - gap: {}", pwm_old, pwm_corr, state.gap_mm);
-		if(steering)
-			steering->set_duty_cycle(pwm_corr);
-	};
-
-	auto drive = [&](auto speed_corr, auto speed_old)
-	{
-		if(state.speed == speed_corr) return;
-
-		state.speed = speed_corr;
-		logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed_old, speed_corr, state.gap_mm);
-		if(driver)
-			driver->drive(speed_corr);
-	};
-
 
 	struct {
 		std::unique_ptr<SyncCamera> driver;
@@ -111,6 +88,44 @@ int main(int argc, const char* argv[])
 		std::atomic<int> value;
 		int center = 0;
 	} cam;
+
+	auto drive = [&](auto speed)
+	{
+		auto speed_corr = speed;
+
+		if(conf.is_slave)
+			speed_corr = adjust_speed(state.steer_deg, speed, state.gap_mm, cam.center-state.align);
+
+		if(state.speed == speed_corr) return;
+		state.speed = speed_corr;
+
+		logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, state.gap_mm);
+		if(driver)
+			driver->drive(speed_corr);
+	};
+
+	auto steer = [&](i32 deg)
+	{
+		auto deg_corr = deg;
+		if(conf.is_slave){
+			deg_corr = adjust_steer(deg, state.gap_mm);
+		}
+		else
+			deg_corr = clamp(deg_corr, Steering::limit.min + STEER_MASTER_LIMIT, Steering::limit.max - STEER_MASTER_LIMIT);
+
+
+		logger->debug("HW: steer: {:3} -> {:3} - gap: {}", deg, deg_corr, state.gap_mm);
+		if(steering)
+			steering->steer(deg_corr);
+
+		if(conf.is_slave && state.speed != proto::Speed::STOP)
+		{
+			auto speed_corr = adjust_speed(state.steer_deg, state.speed, state.gap_mm, cam.center-state.align);
+			drive(speed_corr);
+		}
+
+	};
+
 
 	if(conf.is_slave)
 	{
@@ -145,25 +160,64 @@ int main(int argc, const char* argv[])
 						if(conf.is_slave && state.speed != proto::Speed::STOP)
 						{
 							auto speed_corr = state.speed;
-							if(std::abs(cam.center-state.align)<=3) {}
-							else if(0 > cam.center-state.align)
-								speed_corr += 2;
-							else if(0 < cam.center-state.align)
-								speed_corr -= 2;
-
-							drive(speed_corr, state.speed);
+							if(std::abs(cam.center-state.align) > 3)
+								drive(speed_corr);
 						}
 					}
 					if(cam.center!=0 && state.align<0) {
 						cam.center=0;
 						logger->debug("CAM pattern lost, err: {}", state.align);
 					}
-
-
 				});
 			}
 		}
+
+		if(driver)
+		{
+			auto gap_timer = std::make_shared<Timer>(ioctx);
+			gap_timer->start(std::chrono::milliseconds(100), [&, gap_timer](auto ec)
+			{
+				if(ec) return;
+
+				static u8 pin = 7, i = 0, init = 0;
+				static std::array<u8, GAP_ARRAY_LEN> values;
+
+				driver->gap(pin, [&](auto ec, u8 cm)
+				{
+					if(ec)
+					{
+						on_change(ec, [&](auto ec)
+						{
+							logger->debug("GAP ERR {} ", ec.message());
+						});
+						return;
+					}
+
+					const i32 mm = cm * 10;
+					if(!init) {
+						values.fill(mm);
+						state.gap_mm = mm;
+						init = 1;
+					} else
+					{
+						values[i] = mm;
+						if(++i == values.size())
+							i = 0;
+
+						// get median of low pass
+						auto a = values;
+						std::sort(a.begin(), a.end());
+						state.gap_mm = a[a.size()/2];
+						steer(state.steer_deg);
+					}
+
+				});
+			});
+		}
 	}
+
+
+
 
 	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
 	MQTTClient cl(ioctx, conf.common.host, conf.common.port, conf.common.name);
@@ -173,98 +227,22 @@ int main(int argc, const char* argv[])
 	{
 		using proto::Speed;
 
-		i32 input = std::atoi(str.c_str());
-		u8 speed = map_dual<u8>(input,
+		u8 speed = map_dual<u8>(std::atoi(str.c_str()),
 								def::MOTOR_SCALE.min, 0, def::MOTOR_SCALE.max,
 								Speed::BACK_FULL, Speed::STOP, Speed::FORWARD_FULL);
 
-		if(state.speed != speed)
-		{
-			auto speed_corr = speed;
-
-			if(conf.is_slave)
-				speed_corr = adjust_speed(state.steer_pwm, speed, state.gap_mm, cam.center-state.align);
-
-			drive(speed_corr, speed);
-		}
+		drive(speed);
 	});
 
-	if(driver && conf.is_slave)
-	{
-		auto gap_timer = std::make_shared<Timer>(ioctx);
-		gap_timer->start(std::chrono::milliseconds(100), [&, gap_timer](auto ec)
-		{
-			if(ec) return;
-
-			static u8 pin = 7, i = 0, init = 0;
-			static std::array<u8, GAP_ARRAY_LEN> values;
-
-			driver->gap(pin, [&](auto ec, u8 cm)
-			{
-				if(ec)
-					logger->debug("GAP ERR {} ", ec.message());
-				else
-				{
-					const i32 mm = cm * 10;
-					if(!init) {
-						values.fill(mm);
-						state.gap_mm = mm;
-						init = 1;
-					} else
-					{
-						if(i >= values.size()) {
-							i=0;
-						}
-						values[i] = mm;
-						i++;
-
-						auto a = values;
-						std::sort(a.begin(), a.end());
-						auto median = a[a.size()/2];
-
-						auto pwm_corr = state.steer_pwm;
-						if(state.gap_mm > median){
-							pwm_corr += 30000;
-						}else if(state.gap_mm < median){
-							pwm_corr -= 30000;
-						}
-						state.gap_mm = median;
-						steer(pwm_corr, state.steer_pwm);
-					}
-				}
-			});
-		});
-	}
-
-	if(steering)
-	{
-		steering->set_duty_cycle(def::STEER_DC_DEF);
-		steering->enable(true);
-	}
 
 	cl.subscribe(def::STEER_SUB, [&](const std::string& str)
 	{
-		constexpr u32 STEER_DC_MASTER_LIMIT = 1713876;
 
-		u32 pwm = map(std::atoi(str.c_str()),
+		i32 deg = map(std::atoi(str.c_str()),
 					  def::STEER_SCALE.min, def::STEER_SCALE.max,
-					  def::STEER_DC_SCALE.min, def::STEER_DC_SCALE.max);
+					  Steering::limit.min, Steering::limit.max);
 
-		auto pwm_corr = pwm;
-		if(conf.is_slave){
-			pwm_corr = adjust_steer(pwm, state.gap_mm);
-		}
-		else if(pwm > STEER_DC_MASTER_LIMIT){
-			pwm_corr = STEER_DC_MASTER_LIMIT;
-		}
-		steer(pwm_corr, pwm);
-
-		if(conf.is_slave && state.speed != proto::Speed::STOP)
-		{
-			auto speed = state.speed;
-			auto speed_corr = adjust_speed(state.steer_pwm, speed, state.gap_mm, cam.center-state.align);
-			drive(speed, speed_corr);
-		}
+		steer(deg);
 	});
 
 	std::shared_ptr<Echo> echo;
