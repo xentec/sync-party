@@ -43,6 +43,7 @@ struct
 	bool is_slave;
 	u32 gap_test = 0;
 	struct {
+		i32 update_interval_ms = 300;
 		std::string pattern_path;
 		f32 match_value;
 	} cam;
@@ -60,6 +61,7 @@ int main(int argc, const char* argv[])
 
 	conf.is_slave = opts["-S"];
 	opts({"-g", "--gap"}, conf.gap_test) >> conf.gap_test;
+	opts({"--cam-interval"}, conf.cam.update_interval_ms) >> conf.cam.update_interval_ms;
 	opts({"--cam-pattern"}, conf.cam.pattern_path) >> conf.cam.pattern_path;
 	opts({"--cam-match-val"}, conf.cam.match_value) >> conf.cam.match_value;
 
@@ -117,7 +119,7 @@ int main(int argc, const char* argv[])
 				cam.value.store(0);
 
 				auto cam_timer = std::make_shared<Timer>(ioctx);
-				cam_timer->start(std::chrono::milliseconds(500), [&, cam_timer](auto ec)
+				cam_timer->start(std::chrono::milliseconds(conf.cam.update_interval_ms), [&, cam_timer](auto ec)
 				{
 					if(ec) return;
 
