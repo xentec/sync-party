@@ -1,5 +1,10 @@
 #include "driver.hpp"
 
+#include "util.hpp"
+
+#include "proto-def.hpp"
+
+
 constexpr auto TIMEOUT_TIME = std::chrono::milliseconds(100);
 constexpr auto TIMEOUT_RETRIES = 10;
 
@@ -33,14 +38,20 @@ private:
 
 }
 
+const def::Scale Driver::limit
+{
+	Speed::BACK_FULL - Speed::STOP,
+	Speed::FORWARD_FULL - Speed::STOP
+};
+
 
 Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
-	: logger(slog::stdout_color_st("driver"))
-	, dev(ioctx, dev_path)
-	, timer(ioctx)
-	, timeout_num(0)
-	, parse_state(SYNC)
-	, speed_ctrl{ steady_timer(ioctx), Speed::STOP }
+    : logger(slog::stdout_color_st("driver"))
+    , dev(ioctx, dev_path)
+    , timer(ioctx)
+    , timeout_num(0)
+    , parse_state(SYNC)
+    , speed_ctrl{ steady_timer(ioctx), Speed::STOP }
 {
 	dev.set_option(serial_port::baud_rate(1000000 /*115200*/));
 	dev.set_option(serial_opts::hang_up(false));
@@ -58,16 +69,11 @@ Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 	});
 }
 
-void Driver::drive(u8 speed)
+void Driver::drive(i32 speed)
 {
-	if(speed > Speed::FORWARD_FULL)
-		speed = Speed::FORWARD_FULL;
-	if(speed < Speed::BACK_FULL)
-		speed = Speed::BACK_FULL;
+	speed_ctrl.curr = clamp(Speed(speed + Speed::STOP), Speed::BACK_FULL, Speed::FORWARD_FULL);
 
-	speed_ctrl.curr = speed;
-
-	if(speed == Speed::STOP)
+	if(speed_ctrl.curr == Speed::STOP)
 		speed_ctrl.feeder.cancel();
 	else
 		wd_feed({});
@@ -97,7 +103,7 @@ void Driver::wd_feed(std::error_code err)
 	speed_ctrl.feeder.async_wait([this](auto ec){ wd_feed(ec); });
 }
 
-void Driver::send(Type type, u8 value, std::function<void(std::error_code, u8 cm)> cb)
+void Driver::send(u8 type, u8 value, std::function<void(std::error_code, u8 cm)> cb)
 {
 	if(q.size() > 16 && !(type == Type::MOTOR && value == Speed::STOP))
 	{
@@ -187,7 +193,7 @@ void Driver::recv_handle(std::error_code ec, usz len)
 	bool stop = false;
 	do {
 		buffer_iter pkt_begin(buffers_begin(buf_r.data())),
-					pkt_end(buffers_end(buf_r.data()));
+		            pkt_end(buffers_end(buf_r.data()));
 
 		switch(parse_state)
 		{

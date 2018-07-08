@@ -135,7 +135,7 @@ int main(int argc, const char* argv[])
 
 		logger->trace("on_key: {:2} - {:6}", i->first, i->second);
 
-		motor(def::MOTOR_SCALE.max / 4 * (input_state[KEY_S] - input_state[KEY_W]));
+		motor(map_dual(input_state[KEY_W] - input_state[KEY_S], -1, 1, conf.speed.min, conf.speed.max));
 		steer(def::STEER_SCALE.max * (input_state[KEY_D] - input_state[KEY_A]));
 	};
 

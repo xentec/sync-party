@@ -1,10 +1,9 @@
 #pragma once
 
 #include "asio.hpp"
+#include "def.hpp"
 #include "logger.hpp"
 #include "types.hpp"
-
-#include "proto-def.hpp"
 
 #include <boost/asio/buffers_iterator.hpp>
 #include <boost/asio/serial_port.hpp>
@@ -15,9 +14,11 @@
 
 struct Driver
 {
+	static const def::Scale limit;
+
 	Driver(io_context& ioctx, const char* dev_path);
 
-	void drive(u8 speed);
+	void drive(i32 speed);
 	void gap(u8 sensor, std::function<void(std::error_code, u8 cm)> callback);
 	void analog(u8 pin, std::function<void(std::error_code, u8 v)> callback);
 	void version(std::function<void(std::error_code, u8 ver)> callback);
@@ -25,7 +26,7 @@ struct Driver
 private:
 	using buffer_iter = buffers_iterator<const_buffers_1>;
 
-	void send(proto::Type type, u8 value, std::function<void(std::error_code, u8 cm)> cb = {});
+	void send(u8 type, u8 value, std::function<void(std::error_code, u8 cm)> cb = {});
 
 	void send_start();
 	void send_handle(std::error_code ec, usz len);
