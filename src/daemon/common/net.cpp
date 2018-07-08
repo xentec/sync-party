@@ -5,7 +5,7 @@
 #include <mqtt/str_connect_return_code.hpp>
 
 MQTTClient::MQTTClient(io_context &ctx, const std::string &host, const std::string &port, const std::string &id)
-    : logger(slog::stdout_color_st("net"))
+    : logger(new_loggr("net"))
     , client(mqtt::make_client(ctx, host, port))
 {
 	client->set_clean_session(true);

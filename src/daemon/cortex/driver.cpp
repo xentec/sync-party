@@ -46,7 +46,7 @@ const def::Scale Driver::limit
 
 
 Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
-    : logger(slog::stdout_color_st("driver"))
+    : logger(new_loggr("driver"))
     , dev(ioctx, dev_path)
     , timer(ioctx)
     , timeout_num(0)

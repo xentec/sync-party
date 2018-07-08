@@ -45,7 +45,7 @@ int main(int argc, const char* argv[])
 	opts({"--spd-max"}, conf.speed.max) >> conf.speed.max;
 	opts({"--spd-min"}, conf.speed.min) >> conf.speed.min;
 
-	auto logger = slog::stdout_color_st("app");
+	auto logger = new_loggr("app");
 	logger->info("sp-controller v0.1");
 
 	io_context ioctx;

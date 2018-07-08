@@ -63,7 +63,7 @@ int main(int argc, const char* argv[])
 	opts({"--cam-pattern"}, conf.cam.pattern_path) >> conf.cam.pattern_path;
 	opts({"--cam-match-val"}, conf.cam.match_value) >> conf.cam.match_value;
 
-	logger = slog::stdout_color_st("cortex");
+	logger = new_loggr("cortex");
 	logger->info("sp-cortex v0.1");
 
 	io_context ioctx;

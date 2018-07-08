@@ -5,7 +5,7 @@
 
 
 Controller::Controller(io_context& ctx, Type type, const std::string &dev_path)
-	: logger(slog::stdout_color_st("ctrl"))
+	: logger(new_loggr("ctrl"))
 	, type(type)
 	, sd(ctx)
 	, dev_path(dev_path)
