@@ -21,7 +21,6 @@
  * mqtt -> driver, steering
 */
 
-#define GAP_ARRAY_LEN 5
 static std::string NAME = "sp-drv-0";
 
 loggr logger;
@@ -74,59 +73,30 @@ int main(int argc, const char* argv[])
 	auto driver = try_init<Driver>("driver", ioctx, "/dev/ttyACM0");
 	auto steering = try_init<Steering>("steering");
 
-	struct {
-		i32 steer_deg = 0;
-		i32 speed = 0;
-		i32 speed_prev = 0;
-		i32 gap_mm = conf.gap_test;
-		i32 align = 0;
-	} state;
+	Adjust adj(conf.is_slave);
+
+	adj.drive = [&](auto speed){ on_change(speed, [&](auto speed_prev, auto speed)
+	{
+		logger->debug("HW: motor: {:3} -> {:3} - gap: {}", speed_prev, speed, i32(adj.gap));
+		if(driver)
+			driver->drive(speed);
+	});};
+
+	adj.steer = [&](auto deg){ on_change(deg, [&](auto deg_prev, auto deg)
+	{
+		logger->debug("HW: steer: {:3} -> {:3} - gap: {}", deg_prev, deg, i32(adj.gap));
+		if(steering)
+			steering->steer(deg);
+	});};
+
+	adj.gap_update(conf.gap_test);
 
 	struct {
 		std::unique_ptr<SyncCamera> driver;
 		std::thread thread;
 		std::atomic<int> value;
-		int center = 0;
+		int center = 0, align = 0;
 	} cam;
-
-	auto drive = [&](i32 speed)
-	{
-		auto speed_corr = speed;
-
-		if(conf.is_slave)
-			speed_corr = adjust_speed(state.steer_deg, speed, state.gap_mm, cam.center-state.align);
-
-		if(state.speed == speed_corr) return;
-		state.speed = speed_corr;
-
-		logger->debug("HW: motor: {:3} -> {:3} - gap: {}", speed, speed_corr, state.gap_mm);
-		if(driver)
-			driver->drive(speed_corr);
-	};
-
-	auto steer = [&](i32 deg)
-	{
-		auto deg_corr = deg;
-		if(conf.is_slave){
-			deg_corr = adjust_steer(deg, state.gap_mm);
-		}
-		else
-			deg_corr = clamp(deg_corr, Steering::limit.min + STEER_MASTER_LIMIT, Steering::limit.max - STEER_MASTER_LIMIT);
-
-		state.steer_deg = deg_corr;
-
-		logger->debug("HW: steer: {:3} -> {:3} - gap: {}", deg, deg_corr, state.gap_mm);
-		if(steering)
-			steering->steer(deg_corr);
-
-		if(conf.is_slave && state.speed)
-		{
-			auto speed_corr = adjust_speed(state.steer_deg, state.speed, state.gap_mm, cam.center-state.align);
-			drive(speed_corr);
-		}
-
-	};
-
 
 	if(conf.is_slave)
 	{
@@ -150,20 +120,20 @@ int main(int argc, const char* argv[])
 				{
 					if(ec) return;
 
-					state.align = cam.value.load();
-					if(cam.center==0 && state.align>0) {
-						cam.center=state.align;
+					auto align = cam.value.load();
+					if(cam.center==0 && align>0) {
+						cam.center=align;
 						logger->info("CAM initialized to: {}",cam.center);
 					}
-					if(cam.center!=0 && state.align>=0) {
-						logger->debug("CAM value: {}, diff: {}", state.align, cam.center-state.align);
+					if(cam.center!=0 && align>=0) {
+						const auto diff = cam.center-align;
+						logger->debug("CAM value: {}, diff: {}", align, diff);
 
-						if(state.speed && std::abs(cam.center-state.align) > 3)
-							drive(state.speed);
+						adj.cam_update(diff);
 					}
-					if(cam.center!=0 && state.align<0) {
+					if(cam.center!=0 && align<0) {
 						cam.center=0;
-						logger->debug("CAM pattern lost, err: {}", state.align);
+						logger->debug("CAM pattern lost, err: {}", align);
 					}
 				});
 			}
@@ -177,7 +147,7 @@ int main(int argc, const char* argv[])
 				if(ec) return;
 
 				static u8 pin = 7, i = 0, init = 0;
-				static std::array<u8, GAP_ARRAY_LEN> values;
+				static std::array<u8, 4> values;
 
 				driver->gap(pin, [&](auto ec, u8 cm)
 				{
@@ -190,29 +160,26 @@ int main(int argc, const char* argv[])
 						return;
 					}
 
-					const i32 mm = cm * 10;
 					if(!init) {
-						values.fill(mm);
-						state.gap_mm = mm;
+						values.fill(cm);
+						adj.gap_update(cm * 10);
 						init = 1;
 					} else
 					{
-						values[i] = mm;
+						values[i] = cm;
 						if(++i == values.size())
 							i = 0;
 
 						// get median of low pass
 						auto a = values;
 						std::sort(a.begin(), a.end());
-						state.gap_mm = a[a.size()/2];
-						steer(state.steer_deg);
+						adj.gap_update(a[a.size()/2] * 10);
 					}
 
 				});
 			});
 		}
 	}
-
 
 	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
 	MQTTClient cl(ioctx, conf.common.host, conf.common.port, conf.common.name);
@@ -223,7 +190,7 @@ int main(int argc, const char* argv[])
 		auto speed = map_dual(std::atoi(str.c_str()),
 		                    def::MOTOR_SCALE.min, def::MOTOR_SCALE.max,
 		                    Driver::limit.min, Driver::limit.max);
-		drive(speed);
+		adj.speed_update(speed);
 	});
 
 
@@ -233,7 +200,7 @@ int main(int argc, const char* argv[])
 		auto deg = map(std::atoi(str.c_str()),
 		              def::STEER_SCALE.min, def::STEER_SCALE.max,
 		              Steering::limit.min, Steering::limit.max);
-		steer(deg);
+		adj.direction_update(deg);
 	});
 
 	std::shared_ptr<Echo> echo;
