@@ -61,7 +61,7 @@ int main(int argc, const char* argv[])
 
 	auto forward = [&](const std::string& sub, i32 value_old, i32 value)
 	{
-		auto str = fmt::FormatInt(value).str();
+		auto str = fmt::format_int(value).str();
 		logger->debug("PUB: {}: {:3} -> {:3}", sub, value_old, str);
 		cl.publish(sub, str);
 	};

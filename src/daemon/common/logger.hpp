@@ -10,8 +10,10 @@
 #endif
 
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 namespace slog = spdlog;
 
 using loggr = std::shared_ptr<slog::logger>;
-constexpr auto new_loggr = slog::stdout_color_st;
+
+constexpr auto new_loggr = slog::stdout_color_st<slog::default_factory>;
