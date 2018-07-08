@@ -183,7 +183,7 @@ int main(int argc, const char* argv[])
 				{
 					if(ec)
 					{
-						on_change(ec, [&](auto ec)
+						on_change(ec, [&](auto, auto ec)
 						{
 							logger->debug("GAP ERR {} ", ec.message());
 						});

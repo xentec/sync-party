@@ -59,23 +59,18 @@ int main(int argc, const char* argv[])
 	cl.set_will(def::MOTOR_SUB, "0");
 	cl.connect({});
 
-	auto forward = [&](const std::string& sub, i32 value)
+	auto forward = [&](const std::string& sub, i32 value_old, i32 value)
 	{
 		auto str = fmt::FormatInt(value).str();
-		logger->debug("PUB: {}: {:6}", sub, str);
+		logger->debug("PUB: {}: {:3} -> {:3}", sub, value_old, str);
 		cl.publish(sub, str);
 	};
 
-	auto motor = [&](i32 v) { on_change(v, [&](auto v){ forward(def::MOTOR_SUB, v); }); };
-	auto steer = [&](i32 v) { on_change(v, [&](auto v){ forward(def::STEER_SUB, v); }); };
+	auto motor = [&](i32 v){ on_change(v, [&](auto p, auto v){ forward(def::MOTOR_SUB, p, v); }); };
+	auto steer = [&](i32 v){ on_change(v, [&](auto p, auto v){ forward(def::STEER_SUB, p, v); }); };
 
 	bool err = false;
-	ctrl.on_err = [&](auto)
-	{
-		err = true;
-		motor(0);
-		steer(0);
-	};
+	ctrl.on_err = [&](auto){ err = true, motor(0), steer(0); };
 
 	ctrl.on_axis = [&](u32, Controller::Axis num, i16 val)
 	{

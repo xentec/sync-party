@@ -38,7 +38,7 @@ inline void on_change(const T& v, Args ...args, Fn fn)
 	static T prev {};
 	if(prev != v)
 	{
+		fn(prev, v, args...);
 		prev = v;
-		fn(v, args...);
 	}
 }
