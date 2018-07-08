@@ -122,11 +122,11 @@ int main(int argc, const char* argv[])
 
 					auto align = cam.value.load();
 					if(cam.center==0 && align>0) {
-						cam.center=align;
+						cam.center = align;
 						logger->info("CAM initialized to: {}",cam.center);
 					}
 					if(cam.center!=0 && align>=0) {
-						const auto diff = cam.center-align;
+						const auto diff = f32(cam.center-align) / cam.center;
 						logger->debug("CAM value: {}, diff: {}", align, diff);
 
 						adj.cam_update(diff);
@@ -175,7 +175,6 @@ int main(int argc, const char* argv[])
 						std::sort(a.begin(), a.end());
 						adj.gap_update(a[a.size()/2] * 10);
 					}
-
 				});
 			});
 		}

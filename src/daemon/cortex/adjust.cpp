@@ -1,69 +1,44 @@
 #include "adjust.hpp"
 
+#include "driver.hpp"
 #include "pwm.hpp"
 
 #include <cmath>
 
+const auto PI = std::asin(1) * 2.0;
 
-#define CAR_LENGTH 264
-#define CAR_WIDTH  195
-#define MINMAX_DEGREE 20.0
-#define SPEED_DIFF 16
+constexpr auto ADJUST_DEGREE = 3;
+
+constexpr auto CAR_LENGTH = 264;
+constexpr auto CAR_WIDTH  = 195;
+
 #define TO_RADIANS 0.01745
 #define TO_DEGREES 57.2958
-#define ADJUST_PWM 30000
 
-const auto &steer_deg = Steering::limit;
+i32 car_num_left = 1;
+i32 car_num_right = 0;
 
-static i32 adjust_speed(i32 degree, i32 speed, i32 gap_mm, int cam)
+inline bool is_left(i32 deg) { return deg < 0; }
+inline bool is_right(i32 deg) { return deg > 0; }
+
+
+inline f32 rd_inner(i32 deg)
 {
-	gap_mm += CAR_WIDTH;
-
-	const f32 sin_w = 1 + (gap_mm * std::sin(degree*TO_RADIANS)/ CAR_LENGTH);
-	const f32 sin_b = 1 + ((gap_mm * std::sin(degree*TO_RADIANS)/ CAR_LENGTH)/2);
-
-	f32 sin_x = 1.0;
-
-	if(0 < speed){
-		if(degree < 0)       sin_x = sin_w;
-		else if(degree > 0)  sin_x = 1 / sin_w;
-	}else if(0 > speed){
-		if(degree < 0)       sin_x = sin_b;
-		else if(degree > 0)  sin_x = 1 / sin_b;
-	}
-
-	speed *= sin_x;
-
-	if (std::abs(cam) > 3) // if cam > 0: speed++; else speed--
-		speed -= std::copysign(2, cam);
-
-	return speed;
+	return CAR_LENGTH / std::sin(deg * TO_RADIANS);
 }
 
-static i32 adjust_steer(i32 degree, i32 gap_mm)
+inline f32 rd_outer(i32 deg, i32 gap)
 {
-	f32 corr = 0;
+	const f32 r_i = rd_inner(deg);
+	i32 b = gap + CAR_WIDTH;
 
-	if(degree < 0){
-		const f32 r2 = (CAR_LENGTH / std::sin(degree * TO_RADIANS)) + gap_mm + CAR_WIDTH;
-		corr = -(ADJUST_DEGREE / 2.0 * std::asin(CAR_LENGTH / r2) * TO_DEGREES);
-	}
-	else if(degree > 0){
-		const f32 r2 = (CAR_LENGTH / std::sin(degree * TO_RADIANS)) - gap_mm;
-		corr = ADJUST_DEGREE / 2.0 * std::asin(CAR_LENGTH / r2) * TO_DEGREES;
-	}
+	if(is_left(deg))
+		b *= car_num_left;
 
-	i32 new_degree = corr;
+	if(is_right(deg))
+		b *= car_num_right;
 
-	static i32 gap_prev = gap_mm;
-	if((gap_prev < gap_mm) && ((steer_deg.min + ADJUST_DEGREE) <= degree) && (degree < 0))
-		new_degree -= ADJUST_DEGREE;
-	else if((gap_prev > gap_mm) && ((steer_deg.max - ADJUST_DEGREE) >= degree) && (degree > 0))
-		new_degree += ADJUST_DEGREE;
-
-	gap_prev = gap_mm;
-
-	return std::round(new_degree);
+	return r_i + std::copysign(b, deg);
 }
 
 
@@ -73,26 +48,39 @@ Adjust::Adjust(bool is_slave)
 
 void Adjust::speed_update(i32 spd)
 {
-	spd = adjust_speed(direction, spd, gap, cam);
-	speed.update(spd);
+	if(spd && !speed.prev)
+		target_gap = gap;
 
+	if(direction)
+	{
+		f32 ratio = rd_inner(direction) / rd_outer(direction, gap);
+		spd *= ratio;
+	}
+
+	spd += spd * cam;
+
+	speed.update(spd);
 	drive(speed);
 }
 
-void Adjust::direction_update(i32 deg)
+void Adjust::direction_update(i32 new_deg)
 {
-	deg = adjust_steer(deg, gap);
-	direction.update(deg);
-	speed_update(speed);
+	const f32 r = rd_outer(new_deg, gap);
+	f32 deg = std::asin(CAR_LENGTH / r) * TO_DEGREES;
 
+	if(speed)
+		deg += ADJUST_DEGREE * f32(target_gap - gap) / target_gap;
+
+	direction.update(std::round(deg));
 	steer(direction);
+
+	speed_update(speed);
 }
 
 void Adjust::gap_update(i32 mm)
 {
 	gap.update(mm);
 	direction_update(direction);
-	speed_update(speed);
 }
 
 void Adjust::cam_update(i32 diff)
