@@ -1,6 +1,7 @@
 #pragma once
 
 #include "asio.hpp"
+#include "def.hpp"
 #include "types.hpp"
 
 struct PWM
@@ -16,3 +17,14 @@ private:
 	} fds;
 };
 
+struct Steering
+{
+	static const def::Scale limit;
+
+	Steering();
+	bool steer(i32 deg);
+
+private:
+	PWM pwm_ctrl;
+	u32 pwm_prev;
+};

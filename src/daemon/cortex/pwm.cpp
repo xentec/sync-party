@@ -1,15 +1,31 @@
 #include "pwm.hpp"
 
+#include "def.hpp"
+#include "util.hpp"
+
 #include <unistd.h>
 #include <fcntl.h>
 
 #include <spdlog/fmt/bundled/format.h>
 #include <experimental/filesystem>
 
+constexpr u32 STEER_DC_PERIOD = 20000000;
+
+constexpr def::Scale
+	STEER_DC_SCALE { 1200000, 1800000 },
+	STEER_DC_SCALE_CRIT { 500000, 2500000 };
+
 namespace fs = std::experimental::filesystem;
 
 static const fs::path path_ctl = "/sys/class/pwm/pwmchip0";
 static const fs::path path_pwm = "/sys/class/pwm/pwmchip0/pwm0";
+
+template<class Numeral>
+inline isz sysfs_write(int fd, Numeral n)
+{
+	auto buf = fmt::FormatInt(n);
+	return write(fd, buf.data(), buf.size());
+}
 
 PWM::PWM(u32 period)
 {
@@ -22,7 +38,7 @@ PWM::PWM(u32 period)
 		if(0> fd)
 			throw std::system_error(errno, std::system_category(), "path_ctl open");
 
-		len = write(fd, "0\n", 2);
+		len = write(fd, "0", 1);
 		if(0> len)
 			throw std::system_error(errno, std::system_category(), "export");
 
@@ -33,8 +49,7 @@ PWM::PWM(u32 period)
 	if(0> fd)
 		throw std::system_error(errno, std::system_category(), "period open");
 
-	auto period_str = fmt::format("{}\n", period);
-	len = write(fd, period_str.data(), period_str.size());
+	len = sysfs_write(fd, period);
 	if(0> len)
 		throw std::system_error(errno, std::system_category(), "period write");
 	close(fd);
@@ -55,19 +70,37 @@ PWM::~PWM()
 
 	// disable pwm0
 	int fd = open((path_ctl / "unexport").c_str(), O_WRONLY);
-	write(fd, "0\n", 2);
+	write(fd, "0", 1);
 	close(fd);
 }
 
 void PWM::enable(bool on)
 {
-	auto str = fmt::format("{:d}\n", on);
-	write(fds.enable, str.data(), str.size());
+	sysfs_write(fds.enable, i32(on));
 }
 
 void PWM::set_duty_cycle(u32 pwm)
 {
-	auto str = fmt::format("{}\n", pwm);
-	write(fds.dc, str.data(), str.size());
+	sysfs_write(fds.dc, pwm);
 }
 
+const def::Scale Steering::limit
+{
+	map(STEER_DC_SCALE.min, STEER_DC_SCALE_CRIT.min, STEER_DC_SCALE_CRIT.max, -90, 90),
+	map(STEER_DC_SCALE.max, STEER_DC_SCALE_CRIT.min, STEER_DC_SCALE_CRIT.max, -90, 90)
+};
+
+Steering::Steering()
+	: pwm_ctrl(STEER_DC_PERIOD)
+{
+	steer(0);
+	pwm_ctrl.enable(true);
+}
+
+
+bool Steering::steer(i32 degree)
+{
+	auto deg = clamp(degree, limit.min, limit.max);
+	pwm_ctrl.set_duty_cycle(map(deg, -90, 90, STEER_DC_SCALE_CRIT.min, STEER_DC_SCALE_CRIT.max));
+	return degree == deg; // whether or not clamping was done aka degree was out of range
+}
