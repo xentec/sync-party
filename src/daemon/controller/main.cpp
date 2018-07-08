@@ -23,6 +23,7 @@ static const std::string NAME = "sp-ctrl";
 
 struct {
 	CommonOpts common;
+	std::string dev_path = "/dev/input/js0";
 	def::Scale speed;
 } conf;
 
@@ -32,12 +33,15 @@ int main(int argc, const char* argv[])
 	slog::set_level(slog::level::trace);
 	slog::set_pattern("[%Y-%m-%d %H:%M:%S %L] %n: %v");
 
+	Controller::Type ctrl_type = Controller::Joystick;
 	conf.common.name = NAME;
 	conf.speed = def::MOTOR_SCALE;
 
 	argh::parser opts(argc, argv);
 	parse_common_opts(opts, conf.common);
 
+	if(opts[{"-K", "--keyboard"}]) ctrl_type = Controller::Keyboard;
+	opts({"-D", "--device"}, conf.dev_path) >> conf.dev_path;
 	opts({"--spd-max"}, conf.speed.max) >> conf.speed.max;
 	opts({"--spd-min"}, conf.speed.min) >> conf.speed.min;
 
@@ -47,7 +51,7 @@ int main(int argc, const char* argv[])
 	io_context ioctx;
 
 	logger->info("initialising controller...");
-	Controller ctrl(ioctx, Controller::Joystick, "/dev/input/js0");
+	Controller ctrl(ioctx, ctrl_type, conf.dev_path);
 //	Controller ctrl(ioctx, Controller::Keyboard, "/dev/input/by-path/platform-i8042-serio-0-event-kbd");
 
 	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
