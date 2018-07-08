@@ -2,6 +2,7 @@
 
 #include "asio.hpp"
 #include "def.hpp"
+#include "logger.hpp"
 #include "types.hpp"
 
 struct PWM
@@ -25,6 +26,7 @@ struct Steering
 	bool steer(i32 deg);
 
 private:
+	loggr logger;
 	PWM pwm_ctrl;
 	u32 pwm_prev;
 };
