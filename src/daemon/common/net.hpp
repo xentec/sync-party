@@ -26,6 +26,7 @@ struct MQTTClient
 	void subscribe(const std::string& topic, SubCB cb);
 
 	void publish(const std::string& topic, const std::string& content);
+	void set_will(const std::string& topic, const std::string& content);
 
 private:
 	loggr logger;
