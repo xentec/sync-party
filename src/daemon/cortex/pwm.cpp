@@ -12,8 +12,8 @@
 constexpr u32 STEER_DC_PERIOD = 20000000;
 
 constexpr def::Scale
-	STEER_DC_SCALE { 1200000, 1800000 },
-	STEER_DC_SCALE_CRIT { 500000, 2500000 };
+    STEER_DC_SCALE { 1200000, 1800000 },
+    STEER_DC_SCALE_CRIT { 500000, 2500000 };
 
 namespace fs = std::experimental::filesystem;
 
@@ -84,6 +84,7 @@ void PWM::set_duty_cycle(u32 pwm)
 	sysfs_write(fds.dc, pwm);
 }
 
+
 const def::Scale Steering::limit
 {
 	map(STEER_DC_SCALE.min, STEER_DC_SCALE_CRIT.min, STEER_DC_SCALE_CRIT.max, -90, 90),
@@ -91,7 +92,8 @@ const def::Scale Steering::limit
 };
 
 Steering::Steering()
-	: pwm_ctrl(STEER_DC_PERIOD)
+    : logger(slog::stdout_color_st("steering"))
+    , pwm_ctrl(STEER_DC_PERIOD)
 {
 	steer(0);
 	pwm_ctrl.enable(true);
@@ -100,7 +102,13 @@ Steering::Steering()
 
 bool Steering::steer(i32 degree)
 {
-	auto deg = clamp(degree, limit.min, limit.max);
-	pwm_ctrl.set_duty_cycle(map(deg, -90, 90, STEER_DC_SCALE_CRIT.min, STEER_DC_SCALE_CRIT.max));
-	return degree == deg; // whether or not clamping was done aka degree was out of range
+	const auto deg = clamp(degree, limit.min, limit.max);
+	const auto pwm = map(deg, -90, 90, STEER_DC_SCALE_CRIT.min, STEER_DC_SCALE_CRIT.max);
+
+	bool clamped = degree != deg;
+
+	logger->trace("dc: {:3} -> {:7}{}", deg, pwm, clamped ? " !" : "");
+	pwm_ctrl.set_duty_cycle(pwm);
+
+	return !clamped;
 }
