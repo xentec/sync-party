@@ -41,14 +41,15 @@ Adjust::Adjust(Position&& pos)
     : pos(std::move(pos))
 {}
 
-void Adjust::speed_update(i32 spd)
+
+void Adjust::adjust_speed(i32 spd)
 {
 	if(spd && !speed.prev)
-		target_gap = gap;
+		gap.target = gap;
 
-	if(direction)
+	if(steer)
 	{
-		f32 ratio = rd_inner(direction) / rd_outer(direction, gap, pos.left, pos.right);
+		f32 ratio = rd_inner(steer) / rd_outer(steer, gap, pos.left, pos.right);
 		spd *= ratio;
 	}
 
@@ -58,28 +59,40 @@ void Adjust::speed_update(i32 spd)
 	drive(speed);
 }
 
-void Adjust::direction_update(i32 new_deg)
+void Adjust::speed_update(i32 spd)
 {
-	const f32 r = rd_outer(new_deg, gap, pos.left, pos.right);
-	f32 deg = std::asin(CAR_LENGTH / r) * TO_DEGREES;
+	speed.target = spd;
+	adjust_speed(spd);
+}
+
+void Adjust::adjust_steer(i32 deg)
+{
+	const f32 r = rd_outer(deg, gap, pos.left, pos.right);
+	deg = std::asin(CAR_LENGTH / r) * TO_DEGREES;
 
 	if(speed)
-		deg += ADJUST_DEGREE * f32(target_gap - gap) / target_gap;
+		deg += ADJUST_DEGREE * f32(gap.target - gap) / gap.target;
 
-	direction.update(std::round(deg));
-	steer(direction);
+	steer.update(std::round(deg));
+	steering(steer);
 
-	speed_update(speed);
+	adjust_speed(speed.target);
+}
+
+void Adjust::steer_update(i32 deg)
+{
+	steer.target = deg;
+	adjust_steer(deg);
 }
 
 void Adjust::gap_update(i32 mm)
 {
 	gap.update(mm);
-	direction_update(direction);
+	adjust_steer(steer);
 }
 
 void Adjust::cam_update(i32 diff)
 {
 	cam.update(diff);
-	speed_update(speed);
+	adjust_speed(speed);
 }
