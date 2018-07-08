@@ -15,11 +15,8 @@
 
 const auto &steer_deg = Steering::limit;
 
-
-i32 adjust_speed(i32 degree, i32 speed, i32 gap_mm, int cam)
+static i32 adjust_speed(i32 degree, i32 speed, i32 gap_mm, int cam)
 {
-	if(speed == 0) return speed;
-
 	gap_mm += CAR_WIDTH;
 
 	const f32 sin_w = 1 + (gap_mm * std::sin(degree*TO_RADIANS)/ CAR_LENGTH);
@@ -43,7 +40,7 @@ i32 adjust_speed(i32 degree, i32 speed, i32 gap_mm, int cam)
 	return speed;
 }
 
-i32 adjust_steer(i32 degree, i32 gap_mm)
+static i32 adjust_steer(i32 degree, i32 gap_mm)
 {
 	f32 corr = 0;
 
@@ -67,4 +64,39 @@ i32 adjust_steer(i32 degree, i32 gap_mm)
 	gap_prev = gap_mm;
 
 	return std::round(new_degree);
+}
+
+
+Adjust::Adjust(bool is_slave)
+    : is_slave(is_slave)
+{}
+
+void Adjust::speed_update(i32 spd)
+{
+	spd = adjust_speed(direction, spd, gap, cam);
+	speed.update(spd);
+
+	drive(speed);
+}
+
+void Adjust::direction_update(i32 deg)
+{
+	deg = adjust_steer(deg, gap);
+	direction.update(deg);
+	speed_update(speed);
+
+	steer(direction);
+}
+
+void Adjust::gap_update(i32 mm)
+{
+	gap.update(mm);
+	direction_update(direction);
+	speed_update(speed);
+}
+
+void Adjust::cam_update(i32 diff)
+{
+	cam.update(diff);
+	speed_update(speed);
 }
