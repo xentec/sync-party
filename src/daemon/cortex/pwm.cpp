@@ -92,7 +92,7 @@ const def::Scale Steering::limit
 };
 
 Steering::Steering()
-    : logger(slog::stdout_color_st("steering"))
+    : logger(new_loggr("steering"))
     , pwm_ctrl(STEER_DC_PERIOD)
 {
 	steer(0);
