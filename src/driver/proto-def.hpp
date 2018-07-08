@@ -44,9 +44,7 @@ enum Speed : uint8_t
 {
 //	BACK_FULL    = 0x10,
 	BACK_FULL    = 0x20,
-//	BACK_FULL    = 0x26,
 	STOP         = 0x30,
-//	FORWARD_FULL = 0x40,
 	FORWARD_FULL = 0x60,
 //	FORWARD_FULL = 0x90,
 };
