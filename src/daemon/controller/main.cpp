@@ -52,12 +52,12 @@ int main(int argc, const char* argv[])
 
 	logger->info("initialising controller...");
 	Controller ctrl(ioctx, ctrl_type, conf.dev_path);
-//	Controller ctrl(ioctx, Controller::Keyboard, "/dev/input/by-path/platform-i8042-serio-0-event-kbd");
 
 	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
 	MQTTClient cl (ioctx, conf.common.host, conf.common.port, conf.common.name);
-	cl.connect({});
 
+	cl.set_will(def::MOTOR_SUB, "0");
+	cl.connect({});
 
 	auto forward = [&](const std::string& sub, i32 value)
 	{
@@ -100,18 +100,18 @@ int main(int argc, const char* argv[])
 
 		i32 speed_input = input_state[Controller::RT2] - input_state[Controller::LT2];
 		i32 speed_mapped =
-				map_dual(speed_input,
-						 Controller::axis_min * 2,  Controller::axis_max * 2,
-						 conf.speed.min, conf.speed.max);
+		        map_dual(speed_input,
+		                 Controller::axis_min * 2,  Controller::axis_max * 2,
+		                 conf.speed.min, conf.speed.max);
 
 		logger->trace("speed: {:6} -> {:4}", speed_input, speed_mapped);
 		motor(speed_mapped);
 
 		i32 steer_input = input_state[Controller::LS_H];
 		i32 steer_mapped =
-				map<i32, i32>(steer_input,
-							  Controller::axis_min, Controller::axis_max,
-							  def::STEER_SCALE.min, def::STEER_SCALE.max);
+		        map<i32, i32>(steer_input,
+		                      Controller::axis_min, Controller::axis_max,
+		                      def::STEER_SCALE.min, def::STEER_SCALE.max);
 
 		logger->trace("steer: {:6} -> {:4}", steer_input, steer_mapped);
 		steer(steer_mapped);

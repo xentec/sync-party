@@ -5,8 +5,8 @@
 #include <mqtt/str_connect_return_code.hpp>
 
 MQTTClient::MQTTClient(io_context &ctx, const std::string &host, const std::string &port, const std::string &id)
-	: logger(slog::stdout_color_st("net"))
-	, client(mqtt::make_client(ctx, host, port))
+    : logger(slog::stdout_color_st("net"))
+    , client(mqtt::make_client(ctx, host, port))
 {
 	client->set_clean_session(true);
 	client->set_client_id(id);
@@ -17,8 +17,8 @@ MQTTClient::MQTTClient(io_context &ctx, const std::string &host, const std::stri
 	});
 
 	client->set_publish_handler([this](u8, auto,
-						   const std::string& topic_name,
-						   const std::string& contents)
+	                       const std::string& topic_name,
+	                       const std::string& contents)
 	{
 		auto itr = callbacks.find(topic_name);
 		if(itr == callbacks.end())
@@ -29,7 +29,6 @@ MQTTClient::MQTTClient(io_context &ctx, const std::string &host, const std::stri
 
 		return true;
 	});
-
 }
 
 void MQTTClient::connect(std::function<void (bool, u8)> cb)
@@ -51,7 +50,7 @@ void MQTTClient::connect(std::function<void (bool, u8)> cb)
 			cb(sp, connack_return_code);
 
 		for(const auto& p: callbacks)
-			client->subscribe(p.first, p.second.qos);
+			client->async_subscribe(p.first, p.second.qos);
 
 		return true;
 	});
@@ -66,8 +65,7 @@ void MQTTClient::subscribe(const std::string &topic, u8 qos, SubCB cb)
 {
 	callbacks.emplace(topic, Sub{qos, cb});
 	if(client->connected())
-		client->subscribe(topic, qos);
-
+		client->async_subscribe(topic, qos);
 }
 
 void MQTTClient::subscribe(const std::string &topic, MQTTClient::SubCB cb)
@@ -77,5 +75,10 @@ void MQTTClient::subscribe(const std::string &topic, MQTTClient::SubCB cb)
 
 void MQTTClient::publish(const std::string &topic, const std::string &content)
 {
-	client->publish(topic, content);
+	client->async_publish(topic, content);
+}
+
+void MQTTClient::set_will(const std::string& topic, const std::string& content)
+{
+	client->set_will(mqtt::will(topic, content));
 }
