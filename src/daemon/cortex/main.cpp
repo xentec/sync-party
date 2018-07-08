@@ -76,8 +76,8 @@ int main(int argc, const char* argv[])
 
 	struct {
 		i32 steer_deg = 0;
-		u8 speed = proto::Speed::STOP;
-		u8 speed_prev = proto::Speed::STOP;
+		i32 speed = 0;
+		i32 speed_prev = 0;
 		i32 gap_mm = conf.gap_test;
 		i32 align = 0;
 	} state;
@@ -89,7 +89,7 @@ int main(int argc, const char* argv[])
 		int center = 0;
 	} cam;
 
-	auto drive = [&](auto speed)
+	auto drive = [&](i32 speed)
 	{
 		auto speed_corr = speed;
 
@@ -99,7 +99,7 @@ int main(int argc, const char* argv[])
 		if(state.speed == speed_corr) return;
 		state.speed = speed_corr;
 
-		logger->debug("HW: motor: {:02x} -> {:02x} - gap: {}", speed, speed_corr, state.gap_mm);
+		logger->debug("HW: motor: {:3} -> {:3} - gap: {}", speed, speed_corr, state.gap_mm);
 		if(driver)
 			driver->drive(speed_corr);
 	};
@@ -113,12 +113,13 @@ int main(int argc, const char* argv[])
 		else
 			deg_corr = clamp(deg_corr, Steering::limit.min + STEER_MASTER_LIMIT, Steering::limit.max - STEER_MASTER_LIMIT);
 
+		state.steer_deg = deg_corr;
 
 		logger->debug("HW: steer: {:3} -> {:3} - gap: {}", deg, deg_corr, state.gap_mm);
 		if(steering)
 			steering->steer(deg_corr);
 
-		if(conf.is_slave && state.speed != proto::Speed::STOP)
+		if(conf.is_slave && state.speed)
 		{
 			auto speed_corr = adjust_speed(state.steer_deg, state.speed, state.gap_mm, cam.center-state.align);
 			drive(speed_corr);
@@ -157,12 +158,8 @@ int main(int argc, const char* argv[])
 					if(cam.center!=0 && state.align>=0) {
 						logger->debug("CAM value: {}, diff: {}", state.align, cam.center-state.align);
 
-						if(conf.is_slave && state.speed != proto::Speed::STOP)
-						{
-							auto speed_corr = state.speed;
-							if(std::abs(cam.center-state.align) > 3)
-								drive(speed_corr);
-						}
+						if(state.speed && std::abs(cam.center-state.align) > 3)
+							drive(state.speed);
 					}
 					if(cam.center!=0 && state.align<0) {
 						cam.center=0;
@@ -217,20 +214,15 @@ int main(int argc, const char* argv[])
 	}
 
 
-
-
 	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
 	MQTTClient cl(ioctx, conf.common.host, conf.common.port, conf.common.name);
 	cl.connect({});
 
 	cl.subscribe(def::MOTOR_SUB, [&](const std::string& str)
 	{
-		using proto::Speed;
-
-		u8 speed = map_dual<u8>(std::atoi(str.c_str()),
-								def::MOTOR_SCALE.min, 0, def::MOTOR_SCALE.max,
-								Speed::BACK_FULL, Speed::STOP, Speed::FORWARD_FULL);
-
+		auto speed = map_dual(std::atoi(str.c_str()),
+		                    def::MOTOR_SCALE.min, def::MOTOR_SCALE.max,
+		                    Driver::limit.min, Driver::limit.max);
 		drive(speed);
 	});
 
@@ -238,10 +230,9 @@ int main(int argc, const char* argv[])
 	cl.subscribe(def::STEER_SUB, [&](const std::string& str)
 	{
 
-		i32 deg = map(std::atoi(str.c_str()),
-					  def::STEER_SCALE.min, def::STEER_SCALE.max,
-					  Steering::limit.min, Steering::limit.max);
-
+		auto deg = map(std::atoi(str.c_str()),
+		              def::STEER_SCALE.min, def::STEER_SCALE.max,
+		              Steering::limit.min, Steering::limit.max);
 		steer(deg);
 	});
 

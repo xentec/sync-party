@@ -16,40 +16,31 @@
 const auto &steer_deg = Steering::limit;
 
 
-u8 adjust_speed(i32 degree, u8 speed, i32 gap_mm, int cam)
+i32 adjust_speed(i32 degree, i32 speed, i32 gap_mm, int cam)
 {
+	if(speed == 0) return speed;
+
 	gap_mm += CAR_WIDTH;
 
 	const f32 sin_w = 1 + (gap_mm * std::sin(degree*TO_RADIANS)/ CAR_LENGTH);
 	const f32 sin_b = 1 + ((gap_mm * std::sin(degree*TO_RADIANS)/ CAR_LENGTH)/2);
 
-	u8 new_speed = speed;
-	if(proto::Speed::STOP < speed){
+	f32 sin_x = 1.0;
 
-		if(degree < 0)
-		{
-			new_speed = ((speed - proto::Speed::STOP) * sin_w) + proto::Speed::STOP;
-		}
-		else if(degree > 0)
-		{
-			new_speed = ((speed - proto::Speed::STOP) / sin_w) + proto::Speed::STOP;
-		}
-	}else if(proto::Speed::STOP > speed){
-
-		if(degree < 0)
-		{
-			new_speed = proto::Speed::STOP - ((proto::Speed::STOP - speed) * sin_b);
-		}
-		else if(degree > 0)
-		{
-			new_speed = proto::Speed::STOP - ((proto::Speed::STOP - speed) / sin_b);
-		}
+	if(0 < speed){
+		if(degree < 0)       sin_x = sin_w;
+		else if(degree > 0)  sin_x = 1 / sin_w;
+	}else if(0 > speed){
+		if(degree < 0)       sin_x = sin_b;
+		else if(degree > 0)  sin_x = 1 / sin_b;
 	}
 
-	if (std::abs(cam) > 3) // if cam < 0: speed++; else speed--
-		new_speed -= std::copysign(2, cam);
+	speed *= sin_x;
 
-	return new_speed;
+	if (std::abs(cam) > 3) // if cam > 0: speed++; else speed--
+		speed -= std::copysign(2, cam);
+
+	return speed;
 }
 
 i32 adjust_steer(i32 degree, i32 gap_mm)

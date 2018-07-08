@@ -12,7 +12,7 @@ enum Sync : uint8_t
 	BYTE_END  = ']',
 };
 
-enum class Type : uint8_t
+enum Type : uint8_t
 {
 	PING          = 0x0,
 	VERSION       = 0x1,
