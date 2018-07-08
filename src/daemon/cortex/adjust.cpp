@@ -15,9 +15,6 @@ constexpr auto CAR_WIDTH  = 195;
 #define TO_RADIANS 0.01745
 #define TO_DEGREES 57.2958
 
-i32 car_num_left = 1;
-i32 car_num_right = 0;
-
 inline bool is_left(i32 deg) { return deg < 0; }
 inline bool is_right(i32 deg) { return deg > 0; }
 
@@ -27,23 +24,21 @@ inline f32 rd_inner(i32 deg)
 	return CAR_LENGTH / std::sin(deg * TO_RADIANS);
 }
 
-inline f32 rd_outer(i32 deg, i32 gap)
+inline f32 rd_outer(i32 deg, i32 gap, i32 cl, i32 cr)
 {
 	const f32 r_i = rd_inner(deg);
 	i32 b = gap + CAR_WIDTH;
 
-	if(is_left(deg))
-		b *= car_num_left;
-
-	if(is_right(deg))
-		b *= car_num_right;
+	if(is_left(deg))  b *= cl;
+	else
+	if(is_right(deg)) b *= cr;
 
 	return r_i + std::copysign(b, deg);
 }
 
 
-Adjust::Adjust(bool is_slave)
-    : is_slave(is_slave)
+Adjust::Adjust(Position&& pos)
+    : pos(std::move(pos))
 {}
 
 void Adjust::speed_update(i32 spd)
@@ -53,7 +48,7 @@ void Adjust::speed_update(i32 spd)
 
 	if(direction)
 	{
-		f32 ratio = rd_inner(direction) / rd_outer(direction, gap);
+		f32 ratio = rd_inner(direction) / rd_outer(direction, gap, pos.left, pos.right);
 		spd *= ratio;
 	}
 
@@ -65,7 +60,7 @@ void Adjust::speed_update(i32 spd)
 
 void Adjust::direction_update(i32 new_deg)
 {
-	const f32 r = rd_outer(new_deg, gap);
+	const f32 r = rd_outer(new_deg, gap, pos.left, pos.right);
 	f32 deg = std::asin(CAR_LENGTH / r) * TO_DEGREES;
 
 	if(speed)

@@ -6,6 +6,7 @@
 
 struct Adjust
 {
+	struct Position { u16 left, right; };
 	struct Value
 	{
 		operator i32() { return curr; };
@@ -17,9 +18,9 @@ struct Adjust
 	};
 
 	Value speed, direction, gap, cam;
-	const bool is_slave;
+	const Position pos;
 
-	Adjust(bool is_slave);
+	Adjust(Position&& pos);
 
 	void speed_update(i32 spd);
 	void direction_update(i32 new_deg);
