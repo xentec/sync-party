@@ -23,7 +23,7 @@ static const fs::path path_pwm = "/sys/class/pwm/pwmchip0/pwm0";
 template<class Numeral>
 inline isz sysfs_write(int fd, Numeral n)
 {
-	auto buf = fmt::FormatInt(n);
+	auto buf = fmt::format_int(n);
 	return write(fd, buf.data(), buf.size());
 }
 
