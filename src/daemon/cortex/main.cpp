@@ -83,7 +83,7 @@ int main(int argc, const char* argv[])
 			driver->drive(speed);
 	});};
 
-	adj.steer = [&](auto deg){ on_change(deg, [&](auto deg_prev, auto deg)
+	adj.steering = [&](auto deg){ on_change(deg, [&](auto deg_prev, auto deg)
 	{
 		logger->debug("HW: steer: {:3} -> {:3} - gap: {}", deg_prev, deg, i32(adj.gap));
 		if(steering)
@@ -200,7 +200,7 @@ int main(int argc, const char* argv[])
 		auto deg = map(std::atoi(str.c_str()),
 		              def::STEER_SCALE.min, def::STEER_SCALE.max,
 		              Steering::limit.min, Steering::limit.max);
-		adj.direction_update(deg);
+		adj.steer_update(deg);
 	});
 
 	std::shared_ptr<Echo> echo;
