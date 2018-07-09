@@ -46,14 +46,14 @@ const def::Scale Driver::limit
 
 
 Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
-    : logger(new_loggr("driver"))
-    , dev(ioctx, dev_path)
-    , timer(ioctx)
-    , timeout_num(0)
-    , parse_state(SYNC)
-    , speed_ctrl{ steady_timer(ioctx), Speed::STOP }
+	: logger(new_loggr("driver"))
+	, dev(ioctx, dev_path)
+	, timer(ioctx)
+	, timeout_num(0)
+	, parse_state(SYNC)
+	, speed_ctrl{ steady_timer(ioctx), Speed::STOP }
 {
-	dev.set_option(serial_port::baud_rate(1000000 /*115200*/));
+	dev.set_option(serial_port::baud_rate(BAUD /*115200*/));
 	dev.set_option(serial_opts::hang_up(false));
 	recv_start();
 

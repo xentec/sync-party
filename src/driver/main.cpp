@@ -180,7 +180,7 @@ void setup()
 {
 	motor::init();
 	wd.reset();
-	Serial.begin(115200);
+	Serial.begin(proto::BAUD);
 	wdt_enable(WDTO_120MS);
 
 	randomSeed(analogRead(0));
