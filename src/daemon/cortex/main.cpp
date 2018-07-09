@@ -130,7 +130,7 @@ int main(int argc, const char* argv[])
 			}
 		}
 
-		if(driver)
+		if(driver && conf.gap_test == 0)
 		{
 			auto gap_timer = std::make_shared<Timer>(ioctx);
 			gap_timer->start(std::chrono::milliseconds(100), [&, gap_timer](auto ec)
