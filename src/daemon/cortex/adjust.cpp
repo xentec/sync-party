@@ -53,7 +53,7 @@ void Adjust::adjust_speed(f32 spd)
 		gap.target = gap;
 
 	f32 r = 0.0;
-	if(steer)
+	if(steer.target)
 	{
 		const f32 ro = r_outer(steer.target, gap.target, line.max);
 		r = r_me(steer.target, gap.target, line);
