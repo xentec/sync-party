@@ -40,8 +40,8 @@ inline f32 r_me(i32 deg, i32 gap, const Adjust::Line& line)
 }
 
 Adjust::Adjust(Line&& line)
-    : line(std::move(line))
-    , logger(new_loggr("adjust"))
+	: line(std::move(line))
+	, logger(new_loggr("adjust"))
 {
 	logger->info("pos: {} line length: {}", line.pos, line.max);
 }
@@ -102,11 +102,11 @@ void Adjust::steer_update(i32 deg)
 void Adjust::gap_update(i32 mm)
 {
 	gap.update(mm);
-	adjust_steer(steer);
+	adjust_steer(steer.target);
 }
 
 void Adjust::cam_update(i32 diff)
 {
 	cam.update(diff);
-	adjust_speed(speed);
+	adjust_speed(speed.target);
 }
