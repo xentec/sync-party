@@ -299,6 +299,10 @@ int SyncCamera::pattern_matching(int match_method) {
  */
 
 int SyncCamera::initialize_tracker(std::string tracker_type) {
+    if(tracker_is_initialized) {
+        tracker.release();
+        tracker_is_initialized = 0;
+    }
     if(!tracker_is_initialized) {
         if(tracker_type=="MEDIANFLOW") {
             tracker = TrackerMedianFlow::create();
