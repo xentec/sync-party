@@ -9,7 +9,7 @@
 
 const auto PI = std::asin(1) * 2.0;
 
-constexpr auto ADJUST_DEGREE = 10;
+constexpr auto ADJUST_DEGREE = 15;
 constexpr auto ADJUST_SPEED = 10;
 
 constexpr auto CAR_LENGTH = 264;
