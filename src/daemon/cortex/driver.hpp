@@ -19,7 +19,7 @@ struct Driver
 	Driver(io_context& ioctx, const char* dev_path);
 
 	void drive(i32 speed);
-	void gap(u8 sensor, std::function<void(std::error_code, u8 cm)> callback);
+	void gap(u8 sensor, std::function<void(std::error_code, u8 mm)> callback);
 	void analog(u8 pin, std::function<void(std::error_code, u8 v)> callback);
 	void version(std::function<void(std::error_code, u8 ver)> callback);
 

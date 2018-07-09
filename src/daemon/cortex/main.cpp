@@ -136,9 +136,9 @@ int main(int argc, const char* argv[])
 				if(ec) return;
 
 				static u8 pin = 7, i = 0, init = 0;
-				static std::array<u8, 4> values;
+				static std::array<u8, 3> values;
 
-				driver->gap(pin, [&](auto ec, u8 cm)
+				driver->gap(pin, [&](auto ec, u8 mm)
 				{
 					if(ec)
 					{
@@ -150,12 +150,12 @@ int main(int argc, const char* argv[])
 					}
 
 					if(!init) {
-						values.fill(cm);
-						adj.gap_update(cm * 10);
+						values.fill(mm);
+						adj.gap_update(mm);
 						init = 1;
 					} else
 					{
-						values[i] = cm;
+						values[i] = mm;
 						if(++i == values.size())
 							i = 0;
 

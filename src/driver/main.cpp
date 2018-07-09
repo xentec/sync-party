@@ -33,7 +33,7 @@ uint8_t us_distance(uint8_t pin = PING_PIN)
 	pinMode(pin, INPUT);
 	uint32_t dur = pulseIn(pin, HIGH, US_TIMEOUT_MIS); // 18500
 
-	return dur / 58;
+	return dur / 5.8;
 }
 
 // Motor control
