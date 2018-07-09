@@ -44,8 +44,8 @@ struct
 	u32 gap_test = 0;
 	struct {
 		i32 update_interval_ms = 300;
-        std::string pattern_path = "OTH_logo_small_3.png";
-        f32 match_value = 0.6;
+		std::string pattern_path = "OTH_logo_small_3.png";
+		f32 match_value = 0.6;
 	} cam;
 } conf;
 
@@ -117,10 +117,7 @@ int main(int argc, const char* argv[])
 						logger->info("CAM initialized to: {}",cam.center);
 					}
 					if(cam.center!=0 && align>=0) {
-						const auto diff = f32(cam.center-align) / cam.center;
-						logger->debug("CAM value: {}, diff: {}", align, diff);
-
-						adj.cam_update(diff);
+						adj.cam_update(f32(cam.center-align) / cam.center);
 					}
 					if(cam.center!=0 && align<0) {
 						cam.center=0;
@@ -178,18 +175,17 @@ int main(int argc, const char* argv[])
 	cl.subscribe(def::MOTOR_SUB, [&](const std::string& str)
 	{
 		auto speed = map_dual(std::atoi(str.c_str()),
-		                    def::MOTOR_SCALE.min, def::MOTOR_SCALE.max,
-		                    Driver::limit.min, Driver::limit.max);
+							  def::MOTOR_SCALE.min, def::MOTOR_SCALE.max,
+							  Driver::limit.min, Driver::limit.max);
 		adj.speed_update(speed);
 	});
 
 
 	cl.subscribe(def::STEER_SUB, [&](const std::string& str)
 	{
-
 		auto deg = map(std::atoi(str.c_str()),
-		              def::STEER_SCALE.min, def::STEER_SCALE.max,
-		              Steering::limit.min, Steering::limit.max);
+					   def::STEER_SCALE.min, def::STEER_SCALE.max,
+					   Steering::limit.min, Steering::limit.max);
 		adj.steer_update(deg);
 	});
 
