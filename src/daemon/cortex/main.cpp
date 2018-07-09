@@ -162,7 +162,7 @@ int main(int argc, const char* argv[])
 						// get median of low pass
 						auto a = values;
 						std::sort(a.begin(), a.end());
-						adj.gap_update(a[a.size()/2] * 10);
+						adj.gap_update(a[a.size()/2]);
 					}
 				});
 			});
