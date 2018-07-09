@@ -43,7 +43,7 @@ struct
 	bool is_slave;
 	u32 gap_test = 0;
 	struct {
-		i32 update_interval_ms = 300;
+		i32 update_interval_ms = 100;
 		std::string pattern_path = "pattern.png";
 		u32 width = 320, height = 240;
 		f32 match_value = 0.6;
@@ -82,6 +82,10 @@ int main(int argc, const char* argv[])
 	adj.drive = [&](auto speed){ if(driver) driver->drive(speed); };
 	adj.steering = [&](auto deg){ if(steering) steering->steer(deg); };
 	adj.gap_update(conf.gap_test);
+
+	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
+	MQTTClient cl(ioctx, conf.common.host, conf.common.port, conf.common.name);
+	cl.connect({});
 
 	struct {
 		std::unique_ptr<SyncCamera> driver;
@@ -131,7 +135,7 @@ int main(int argc, const char* argv[])
 		if(driver && conf.gap_test == 0)
 		{
 			auto gap_timer = std::make_shared<Timer>(ioctx);
-			gap_timer->start(std::chrono::milliseconds(100), [&, gap_timer](auto ec)
+			gap_timer->start(std::chrono::milliseconds(50), [&, gap_timer](auto ec)
 			{
 				if(ec) return;
 
@@ -151,7 +155,6 @@ int main(int argc, const char* argv[])
 
 					if(!init) {
 						values.fill(mm);
-						adj.gap_update(mm);
 						init = 1;
 					} else
 					{
@@ -162,16 +165,22 @@ int main(int argc, const char* argv[])
 						// get median of low pass
 						auto a = values;
 						std::sort(a.begin(), a.end());
-						adj.gap_update(a[a.size()/2]);
+						mm = a[a.size()/2];
 					}
+
+					adj.gap_update(mm);
+					cl.publish("sp/gap", fmt::format("{}", mm));
 				});
 			});
 		}
 	}
 
-	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
-	MQTTClient cl(ioctx, conf.common.host, conf.common.port, conf.common.name);
-	cl.connect({});
+	cl.subscribe("sp/gap", [&](const std::string& str)
+	{
+		i32 mm = std::atoi(str.c_str());
+		if(!adj.gap)
+			adj.gap_inner(mm);
+	});
 
 	cl.subscribe(def::MOTOR_SUB, [&](const std::string& str)
 	{

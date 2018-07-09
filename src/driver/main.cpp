@@ -14,7 +14,7 @@
 #define MOTOR_PIN 11
 #define PING_TIMEOUT_MS 200
 #define PING_PIN 7
-#define US_TIMEOUT_MIS 18000
+#define US_TIMEOUT_MIS 4000 // 18500
 
 
 // UltraSonic
@@ -33,7 +33,7 @@ uint8_t us_distance(uint8_t pin = PING_PIN)
 	pinMode(pin, INPUT);
 	uint32_t dur = pulseIn(pin, HIGH, US_TIMEOUT_MIS); // 18500
 
-	return dur / 5.8;
+	return dur < 1450 ? dur / 5.8 : 255;
 }
 
 // Motor control
