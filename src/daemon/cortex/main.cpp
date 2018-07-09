@@ -45,6 +45,7 @@ struct
 	struct {
 		i32 update_interval_ms = 300;
 		std::string pattern_path = "OTH_logo_small_3.png";
+		u32 width = 320, height = 240;
 		f32 match_value = 0.6;
 	} cam;
 } conf;
@@ -98,7 +99,7 @@ int main(int argc, const char* argv[])
 			cam.driver = try_init<SyncCamera>("camera", "/dev/video0", conf.cam.pattern_path);
 			if(cam.driver)
 			{
-				cam.driver->set_resolution(320,240);
+				cam.driver->set_resolution(conf.cam.width, conf.cam.height);
 				cam.driver->set_matchval(conf.cam.match_value);
 				cam.thread = std::thread([&](auto *atom){ cam.driver->start_sync_camera(atom); }, &cam.value);
 
@@ -117,7 +118,7 @@ int main(int argc, const char* argv[])
 						logger->info("CAM initialized to: {}",cam.center);
 					}
 					if(cam.center!=0 && align>=0) {
-						adj.cam_update(f32(cam.center-align) / cam.center);
+						adj.cam_update(f32(cam.center-align) / conf.cam.width);
 					}
 					if(cam.center!=0 && align<0) {
 						cam.center=0;

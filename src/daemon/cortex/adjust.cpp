@@ -61,7 +61,7 @@ void Adjust::adjust_speed(f32 spd)
 		spd = r/ro * speed.target;
 	}
 
-	spd += spd * cam;
+	spd += cam;
 
 	speed.update(std::round(spd));
 	on_change(speed.curr, [&](auto speed_prev, auto speed)
