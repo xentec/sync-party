@@ -10,6 +10,7 @@
 const auto PI = std::asin(1) * 2.0;
 
 constexpr auto ADJUST_DEGREE = 10;
+constexpr auto ADJUST_SPEED = 10;
 
 constexpr auto CAR_LENGTH = 264;
 constexpr auto CAR_WIDTH  = 195;
@@ -106,8 +107,8 @@ void Adjust::gap_update(i32 mm)
 	adjust_steer(steer.target);
 }
 
-void Adjust::cam_update(i32 diff)
+void Adjust::cam_update(f32 diff)
 {
-	cam.update(diff);
+	cam.update(diff * ADJUST_SPEED);
 	adjust_speed(speed.target);
 }
