@@ -44,8 +44,8 @@ struct
 	u32 gap_test = 0;
 	struct {
 		i32 update_interval_ms = 300;
-		std::string pattern_path;
-		f32 match_value;
+        std::string pattern_path = "OTH_logo_small_3.png";
+        f32 match_value = 0.6;
 	} cam;
 } conf;
 
