@@ -19,38 +19,43 @@ inline bool is_left(i32 deg) { return deg < 0; }
 inline bool is_right(i32 deg) { return deg > 0; }
 
 
-inline f32 rd_inner(i32 deg)
+inline f32 r_inner(i32 deg)
 {
 	return CAR_LENGTH / std::sin(deg * TO_RADIANS);
 }
 
-inline f32 rd_outer(i32 deg, i32 gap, i32 cl, i32 cr)
+inline f32 r_outer(i32 deg, i32 gap, i32 b_n = 0)
 {
-	const f32 r_i = rd_inner(deg);
-	i32 b = gap + CAR_WIDTH;
+	const f32 r_i = r_inner(deg);
+	const i32 b = gap + CAR_WIDTH;
+	return r_i + std::copysign(b * b_n, deg);
+}
 
-	if(is_left(deg))  b *= cl;
-	else
-	if(is_right(deg)) b *= cr;
+inline f32 r_me(i32 deg, i32 gap, const Adjust::Line& line)
+{
+	const u16 in_cars = is_left(deg) ? line.pos : line.max - line.pos;
+	return r_outer(deg, gap, in_cars);
+}
 
-	return r_i + std::copysign(b, deg);
+Adjust::Adjust(Line&& line)
+    : line(std::move(line))
+    , logger(new_loggr("adjust"))
+{
+	logger->info("pos: {} line length: {}", line.pos, line.max);
 }
 
 
-Adjust::Adjust(Position&& pos)
-    : pos(std::move(pos))
-{}
-
-
-void Adjust::adjust_speed(i32 spd)
+void Adjust::adjust_speed(f32 spd)
 {
 	if(spd && !speed.prev)
 		gap.target = gap;
 
+	f32 r = 0.0;
 	if(steer)
 	{
-		f32 ratio = rd_inner(steer) / rd_outer(steer, gap, pos.left, pos.right);
-		spd *= ratio;
+		const f32 ro = r_outer(steer.target, gap.target, line.max);
+		r = r_me(steer.target, gap.target, line);
+		spd = r/ro * speed.target;
 	}
 
 	spd += spd * cam;
@@ -65,10 +70,10 @@ void Adjust::speed_update(i32 spd)
 	adjust_speed(spd);
 }
 
-void Adjust::adjust_steer(i32 deg)
+void Adjust::adjust_steer(f32 deg)
 {
-	const f32 r = rd_outer(deg, gap, pos.left, pos.right);
-	deg = std::asin(CAR_LENGTH / r) * TO_DEGREES;
+	const f32 ro = r_me(deg, gap.target, line);
+	deg = std::asin(CAR_LENGTH / ro) * TO_DEGREES;
 
 	if(speed)
 		deg += ADJUST_DEGREE * f32(gap.target - gap) / gap.target;
