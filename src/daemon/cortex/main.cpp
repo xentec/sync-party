@@ -76,7 +76,7 @@ int main(int argc, const char* argv[])
 	auto steering = try_init<Steering>("steering");
 
 
-	Adjust adj(conf.is_slave ? Adjust::Position{1,0} : Adjust::Position{0,1});
+	Adjust adj(Adjust::Line{1, conf.is_slave});
 
 	adj.drive = [&](auto speed){ on_change(speed, [&](auto speed_prev, auto speed)
 	{

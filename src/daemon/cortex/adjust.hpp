@@ -4,9 +4,11 @@
 #include "logger.hpp"
 #include "types.hpp"
 
+#include <functional>
+
 struct Adjust
 {
-	struct Position { u16 left, right; };
+	struct Line { u16 max, pos; };
 	struct Value
 	{
 		operator i32() { return curr; };
@@ -18,9 +20,9 @@ struct Adjust
 	};
 
 	Value speed, steer, gap, cam;
-	const Position pos;
+	const Line line;
 
-	Adjust(Position&& pos);
+	Adjust(Line&& line);
 
 	void speed_update(i32 spd);
 	void steer_update(i32 deg);
@@ -31,8 +33,8 @@ struct Adjust
 	std::function<void(i32 degree)> steering;
 
 private:
-	void adjust_speed(i32 spd);
-	void adjust_steer(i32 deg);
+	void adjust_speed(f32 spd);
+	void adjust_steer(f32 deg);
 
 	loggr logger;
 };
