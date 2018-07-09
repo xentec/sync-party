@@ -1,5 +1,7 @@
 #include "adjust.hpp"
 
+#include "util.hpp"
+
 #include "driver.hpp"
 #include "pwm.hpp"
 
@@ -60,8 +62,12 @@ void Adjust::adjust_speed(f32 spd)
 
 	spd += spd * cam;
 
-	speed.update(spd);
-	drive(speed);
+	speed.update(std::round(spd));
+	on_change(speed.curr, [&](auto speed_prev, auto speed)
+	{
+		logger->debug("M: {:3} -> {:3} - gap: {:3} cam: {:3} r: {:6.4}", speed_prev, speed, i32(gap), i32(cam), r);
+		drive(speed);
+	});
 }
 
 void Adjust::speed_update(i32 spd)
@@ -79,9 +85,12 @@ void Adjust::adjust_steer(f32 deg)
 		deg += ADJUST_DEGREE * f32(gap.target - gap) / gap.target;
 
 	steer.update(std::round(deg));
-	steering(steer);
-
-	adjust_speed(speed.target);
+	on_change(steer.curr, [this](auto deg_prev, auto deg)
+	{
+		logger->debug("S: {:3} -> {:3} - gap: {:3} cam: {:3}", deg_prev, deg, i32(gap), i32(cam));
+		steering(deg);
+		adjust_speed(speed.target);
+	});
 }
 
 void Adjust::steer_update(i32 deg)

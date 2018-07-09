@@ -78,20 +78,8 @@ int main(int argc, const char* argv[])
 
 	Adjust adj(Adjust::Line{1, conf.is_slave});
 
-	adj.drive = [&](auto speed){ on_change(speed, [&](auto speed_prev, auto speed)
-	{
-		logger->debug("HW: motor: {:3} -> {:3} - gap: {}", speed_prev, speed, i32(adj.gap));
-		if(driver)
-			driver->drive(speed);
-	});};
-
-	adj.steering = [&](auto deg){ on_change(deg, [&](auto deg_prev, auto deg)
-	{
-		logger->debug("HW: steer: {:3} -> {:3} - gap: {}", deg_prev, deg, i32(adj.gap));
-		if(steering)
-			steering->steer(deg);
-	});};
-
+	adj.drive = [&](auto speed){ if(driver) driver->drive(speed); };
+	adj.steering = [&](auto deg){ if(steering) steering->steer(deg); };
 	adj.gap_update(conf.gap_test);
 
 	struct {
