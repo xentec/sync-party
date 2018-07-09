@@ -9,6 +9,7 @@ using namespace zbar;
 
 void SyncCamera::start_sync_camera(std::atomic<int> *return_value) {
     double matchvalue = 0.0;
+    flush_frames(1);
 	for(;;) {
         matchvalue = 0.0;
         while(matchvalue == 0)
