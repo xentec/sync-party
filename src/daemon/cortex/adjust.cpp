@@ -65,7 +65,7 @@ void Adjust::adjust_speed(f32 spd)
 	speed.update(std::round(spd));
 	on_change(speed.curr, [&](auto speed_prev, auto speed)
 	{
-		logger->debug("M: {:3} -> {:3} - gap: {:3} cam: {:3} r: {:6.4}", speed_prev, speed, i32(gap), i32(cam), r);
+		logger->debug("M: {:3} => {:3} - gap: {:3} cam: {:3} r: {:6.4}", speed_prev, speed, i32(gap), i32(cam), r);
 		drive(speed);
 	});
 }

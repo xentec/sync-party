@@ -42,11 +42,9 @@ enum Error
 
 enum Speed : uint8_t
 {
-//	BACK_FULL    = 0x10,
-	BACK_FULL    = 0x20,
+	BACK_FULL    = 0x10,
 	STOP         = 0x30,
-	FORWARD_FULL = 0x60,
-//	FORWARD_FULL = 0x90,
+	FORWARD_FULL = 0x90,
 };
 
 }
