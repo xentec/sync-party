@@ -6,6 +6,8 @@
 namespace proto
 {
 
+constexpr auto BAUD = 1000000;
+
 enum Sync : uint8_t
 {
 	BYTE_SYNC = '[',
