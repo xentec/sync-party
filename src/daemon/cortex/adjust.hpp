@@ -29,6 +29,8 @@ struct Adjust
 	void gap_update(i32 mm);
 	void cam_update(f32 diff);
 
+	void gap_inner(i32 mm);
+
 	std::function<void(i32 speed)> drive;
 	std::function<void(i32 degree)> steering;
 

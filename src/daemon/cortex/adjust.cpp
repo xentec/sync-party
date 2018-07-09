@@ -9,7 +9,7 @@
 
 const auto PI = std::asin(1) * 2.0;
 
-constexpr auto ADJUST_DEGREE = 15;
+constexpr auto ADJUST_DEGREE = 8;
 constexpr auto ADJUST_SPEED = 10;
 
 constexpr auto CAR_LENGTH = 264;
@@ -53,6 +53,8 @@ void Adjust::adjust_speed(f32 spd)
 	if(spd && !speed.prev)
 		gap.target = gap;
 
+	if(gap.target == 255) return;
+
 	f32 r = 0.0;
 	if(steer.target)
 	{
@@ -84,7 +86,7 @@ void Adjust::adjust_steer(f32 deg)
 
 	f32 corr = ADJUST_DEGREE * f32(gap.target - gap) / gap.target;
 	if(speed)
-		deg += corr;
+		deg += clamp(i32(std::round(corr)), -ADJUST_DEGREE, ADJUST_DEGREE);
 
 	steer.update(std::round(deg));
 	on_change(steer.curr, [&](auto deg_prev, auto deg)
@@ -111,4 +113,9 @@ void Adjust::cam_update(f32 diff)
 {
 	cam.update(diff * ADJUST_SPEED);
 	adjust_speed(speed.target);
+}
+
+void Adjust::gap_inner(i32 mm)
+{
+	gap.target = mm;
 }
