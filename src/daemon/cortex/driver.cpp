@@ -40,8 +40,8 @@ private:
 
 const def::Scale Driver::limit
 {
-	Speed::BACK_FULL - Speed::STOP,
-	Speed::FORWARD_FULL - Speed::STOP
+	(Speed::BACK_FULL - Speed::STOP) / 4,
+	(Speed::FORWARD_FULL - Speed::STOP) / 4
 };
 
 
@@ -71,7 +71,7 @@ Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
 
 void Driver::drive(i32 speed)
 {
-	speed_ctrl.curr = clamp(Speed(speed + Speed::STOP), Speed::BACK_FULL, Speed::FORWARD_FULL);
+	speed_ctrl.curr = Speed::STOP + clamp(speed, limit.min, limit.max);
 
 	if(speed_ctrl.curr == Speed::STOP)
 		speed_ctrl.feeder.cancel();
