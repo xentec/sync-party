@@ -38,10 +38,12 @@ private:
 
 }
 
+constexpr auto limit_factor = 4.0 / 10.0;
+
 const def::Scale Driver::limit
 {
-	(Speed::BACK_FULL - Speed::STOP) / 4,
-	(Speed::FORWARD_FULL - Speed::STOP) / 4
+	i32((Speed::BACK_FULL - Speed::STOP) * limit_factor),
+	i32((Speed::FORWARD_FULL - Speed::STOP) * limit_factor)
 };
 
 
@@ -193,7 +195,7 @@ void Driver::recv_handle(std::error_code ec, usz len)
 	bool stop = false;
 	do {
 		buffer_iter pkt_begin(buffers_begin(buf_r.data())),
-		            pkt_end(buffers_end(buf_r.data()));
+					pkt_end(buffers_end(buf_r.data()));
 
 		switch(parse_state)
 		{
