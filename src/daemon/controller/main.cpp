@@ -24,7 +24,7 @@ static const std::string NAME = "sp-ctrl";
 struct {
 	CommonOpts common;
 	std::string dev_path = "/dev/input/js0";
-	def::Scale speed;
+	def::Scale speed = def::MOTOR_SCALE;
 } conf;
 
 
@@ -33,18 +33,20 @@ int main(int argc, const char* argv[])
 	slog::set_level(slog::level::trace);
 	slog::set_pattern("[%Y-%m-%d %H:%M:%S %L] %n: %v");
 
-	Controller::Type ctrl_type = Controller::Joystick;
+	// custom default common values
 	conf.common.name = NAME;
-	conf.speed = def::MOTOR_SCALE;
 
+	// handle command line options
 	argh::parser opts(argc, argv);
 	conf.common.parse(opts);
 
+	Controller::Type ctrl_type = Controller::Joystick;
 	if(opts[{"-K", "--keyboard"}]) ctrl_type = Controller::Keyboard;
 	opts({"-D", "--device"}, conf.dev_path) >> conf.dev_path;
 	opts({"--spd-max"}, conf.speed.max) >> conf.speed.max;
 	opts({"--spd-min"}, conf.speed.min) >> conf.speed.min;
 
+	// let's go!
 	auto logger = new_loggr("app");
 	logger->info("sp-controller v0.1");
 
@@ -57,7 +59,7 @@ int main(int argc, const char* argv[])
 	MQTTClient cl (ioctx, conf.common.host, conf.common.port, conf.common.name);
 
 	cl.set_will(def::MOTOR_SUB, "0");
-	cl.connect({});
+	cl.connect();
 
 	// helper for publishing MQTT messages
 	auto forward = [&](const std::string& sub, i32 value_old, i32 value)

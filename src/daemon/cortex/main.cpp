@@ -55,8 +55,10 @@ int main(int argc, const char* argv[])
 	slog::set_level(slog::level::trace);
 	slog::set_pattern("[%Y-%m-%d %H:%M:%S %L] %n: %v");
 
+	// custom default common values
 	conf.common.name = NAME;
 
+	// handle command line options
 	argh::parser opts(argc, argv);
 	conf.common.parse(opts, conf.is_slave);
 
@@ -66,6 +68,7 @@ int main(int argc, const char* argv[])
 	opts({"--cam-pattern"}, conf.cam.pattern_path) >> conf.cam.pattern_path;
 	opts({"--cam-match-val"}, conf.cam.match_value) >> conf.cam.match_value;
 
+	// let's go!
 	logger = new_loggr("cortex");
 	logger->info("sp-cortex v0.1");
 
@@ -76,17 +79,19 @@ int main(int argc, const char* argv[])
 	auto driver = try_init<Driver>("driver", ioctx, "/dev/ttyACM0");
 	auto steering = try_init<Steering>("steering");
 
-
+	// hardcoded test scenario
 	Adjust adj(Adjust::Line{1, conf.is_slave});
 
+	// set control callbacks
 	adj.drive = [&](auto speed){ if(driver) driver->drive(speed); };
 	adj.steering = [&](auto deg){ if(steering) steering->steer(deg); };
 	adj.gap_update(conf.gap_test);
 
 	logger->info("connecting with id {} to {}:{}", conf.common.name, conf.common.host, conf.common.port);
 	MQTTClient cl(ioctx, conf.common.host, conf.common.port, conf.common.name);
-	cl.connect({});
+	cl.connect();
 
+	// camera data
 	struct {
 		std::unique_ptr<SyncCamera> driver;
 		std::thread thread;
@@ -96,10 +101,13 @@ int main(int argc, const char* argv[])
 
 	if(conf.is_slave)
 	{
+		// setup camera
+		// first we need a pattern to match
 		if(0> access(conf.cam.pattern_path.c_str(), R_OK))
 			logger->error("cam pattern not found at {}: {}", conf.cam.pattern_path, strerror(errno));
 		else
 		{
+			// then initialize hardware
 			cam.driver = try_init<SyncCamera>("camera", "/dev/video0", conf.cam.pattern_path);
 			if(cam.driver)
 			{
@@ -111,6 +119,7 @@ int main(int argc, const char* argv[])
 
 				cam.value.store(0);
 
+				// check the offset in intervals
 				auto cam_timer = std::make_shared<Timer>(ioctx);
 				cam_timer->start(std::chrono::milliseconds(conf.cam.update_interval_ms), [&, cam_timer](auto ec)
 				{
@@ -134,6 +143,7 @@ int main(int argc, const char* argv[])
 
 		if(driver && conf.gap_test == 0)
 		{
+			// start gap updater
 			auto gap_timer = std::make_shared<Timer>(ioctx);
 			gap_timer->start(std::chrono::milliseconds(50), [&, gap_timer](auto ec)
 			{
@@ -182,30 +192,36 @@ int main(int argc, const char* argv[])
 			adj.gap_inner(mm);
 	});
 
+	// receive speed input
 	cl.subscribe(def::MOTOR_SUB, [&](const std::string& str)
 	{
+		// map network speed to ours
 		auto speed = map_dual(std::atoi(str.c_str()),
-							  def::MOTOR_SCALE.min, def::MOTOR_SCALE.max,
-							  Driver::limit.min, Driver::limit.max);
+		                      def::MOTOR_SCALE.min, def::MOTOR_SCALE.max,
+		                      Driver::limit.min, Driver::limit.max);
 		adj.speed_update(speed);
 	});
 
-
+	// ...and steer input
 	cl.subscribe(def::STEER_SUB, [&](const std::string& str)
 	{
+		// map network degree to ours
 		auto deg = map(std::atoi(str.c_str()),
-					   def::STEER_SCALE.min, def::STEER_SCALE.max,
-					   Steering::limit.min, Steering::limit.max);
+		               def::STEER_SCALE.min, def::STEER_SCALE.max,
+		               Steering::limit.min, Steering::limit.max);
 		adj.steer_update(deg);
 	});
 
+	// in case the daemon needs to be found on a convoluted network
 	std::shared_ptr<Echo> echo;
 	if(conf.common.echo_broadcast)
 		echo = std::make_shared<Echo>(ioctx, 31337, conf.common.name, std::chrono::seconds(10));
 
+	// stop on system signal
 	signal_set stop(ioctx, SIGINT, SIGTERM);
 	stop.async_wait([&](auto, int) { ioctx.stop(); });
 
+	// fire off the event loop
 	logger->info("running...");
 	ioctx.run();
 

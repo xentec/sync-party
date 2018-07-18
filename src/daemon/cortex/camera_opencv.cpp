@@ -8,24 +8,24 @@ using namespace cv;
 using namespace zbar;
 
 void SyncCamera::start_sync_camera(std::atomic<int> *return_value) {
-    double matchvalue = 0.0;
-    flush_frames(1);
+	double matchvalue = 0.0;
+	flush_frames(1);
 	for(;;) {
-        matchvalue = 0.0;
-        while(matchvalue == 0)
+		matchvalue = 0.0;
+		while(matchvalue == 0)
 		{
 			matchvalue = pattern_matching_scaled(CV_TM_SQDIFF_NORMED); //look for pattern
-            if (matchvalue > 0) {
-                return_value->store(0);
-                initialize_tracker("KCF");
-                break; //pattern found, break loop
-            }
+			if (matchvalue > 0) {
+				return_value->store(0);
+				initialize_tracker("KCF");
+				break; //pattern found, break loop
+			}
 			flush_frames(1); //if no pattern was detected, keep camera busy for 1 second
 		}
 
 
 
-        while (return_value->load() >= 0)
+		while (return_value->load() >= 0)
 		{
 			return_value->store(track_next());
 		}
@@ -57,12 +57,6 @@ void *start_sync_camera(void *thread_data) {
 }
 */
 
-/**
- * @brief ContinuousScanBarcode Keeps scanning for barcodes
- * @param thread_data A pointer to a barcode_thread_data structure
- * @return Numeric barcode in exit message
- */
-
 void SyncCamera::continuous_scan_barcode(std::atomic<int> *return_barcode, int retries, int show_rectangle) {
 	long* barcode = new long(0);
 	//keep scanning until we find a barcode
@@ -90,9 +84,9 @@ void SyncCamera::continuous_scan_barcode(std::atomic<int> *return_barcode, int r
 
 
 SyncCamera::SyncCamera(const std::string &cam_path, const std::string &pattern_path)
-	: cap(cam_path)
-	, input_template(cv::imread(pattern_path, cv::IMREAD_COLOR))
-	, cam_fps(cap.get(CAP_PROP_FPS))
+    : cap(cam_path)
+    , input_template(cv::imread(pattern_path, cv::IMREAD_COLOR))
+    , cam_fps(cap.get(CAP_PROP_FPS))
 {
 	if(!cap.isOpened())
 	{
@@ -105,12 +99,6 @@ SyncCamera::~SyncCamera() {
 	cap.release();
 }
 
-/**
- * @brief SyncCamera::set_resolution Set the camera resolution
- * @param width width in pixels
- * @param height height in pixels
- */
-
 void SyncCamera::set_resolution(u32 width, u32 height) {
 	cap.set(CAP_PROP_FOURCC, CAP_OPENCV_MJPEG);
 	cap.set(CAP_PROP_FRAME_WIDTH,width);
@@ -118,10 +106,6 @@ void SyncCamera::set_resolution(u32 width, u32 height) {
 	cam_fps = cap.get(CAP_PROP_FPS); //read back fps
 }
 
-/**
- * @brief SyncCamera::set_pattern Sets the template for pattern recognition
- * @param pattern path to a pattern file
- */
 void SyncCamera::set_pattern(String pattern) {
 	input_template = imread(pattern,IMREAD_COLOR);
 }
@@ -130,13 +114,6 @@ void SyncCamera::set_matchval(double value) {
 	matchval = value;
 }
 
-
-/**
- * @brief ScanBarcode Scans an image for a barcode
- * @param image The image to search the barcode in
- * @param show_rectangle If set to 1, draws a rectangle around the barcode in the provided image (defaults to 0)
- * @return Barcod#include "opencv2/opencv.hpp"e in numerical form
- */
 
 long SyncCamera::scan_barcode(int show_rectangle) {
 	if(!cap.isOpened()) { return -1; }
@@ -183,15 +160,6 @@ long SyncCamera::scan_barcode(int show_rectangle) {
 	// all done, return barcode
 	return barcode;
 }
-
-
-/**
- * @brief SyncCamera::PatternMatching_scaled Multi-scale template matching
- * @param match_method the CV match method
- * @param minMatchQuality minimum quality to get accepted as a match, values between 0 and 1 (good matches are >0.7)
- * @param iterations number of downscaled images to process (higher gets better matches, but is slower)
- * @return -1 on error, 0 otherwise
- */
 
 double SyncCamera::pattern_matching_scaled(int match_method, int iterations) {
 	Mat result, image_resized;
@@ -241,16 +209,6 @@ double SyncCamera::pattern_matching_scaled(int match_method, int iterations) {
 	return matchVal_best;
 }
 
-/**
- * @brief Searches for a template pattern in an image
- * @param input_template A template image
- * @param image The image to search the template in. On a successful match, draws a rectangle around the match
- * @param match_method normalized OpenCV match method (defaults to CV_TM_SQDIFF_NORMED)
- * @return 1 if a pattern was found
- * @return 0 if the pattern wasn't found within the image (score below threshold)
- * @return -1 on error
- */
-
 int SyncCamera::pattern_matching(int match_method) {
 	Mat result, image;
 	if (!cap.isOpened()) { return -1; }
@@ -292,35 +250,24 @@ int SyncCamera::pattern_matching(int match_method) {
 	return 1;
 }
 
-/**
- * @brief SyncCamera::InitializeTracker Initializes the motion tracker from a previously detected pattern
- * @param tracker_type MEDIANFLOW and KCF are supported
- * @return -1 on error, else 0
- */
-
 int SyncCamera::initialize_tracker(std::string tracker_type) {
-    if(tracker_is_initialized) {
-        tracker.release();
-        tracker_is_initialized = 0;
-    }
-    if(!tracker_is_initialized) {
-        if(tracker_type=="MEDIANFLOW") {
-            tracker = TrackerMedianFlow::create();
-        }
-        else if(tracker_type=="KCF") {
-            tracker = TrackerKCF::create();
-        } else return -1;
-    }
-    //initialize tracker
-    tracker->init(tracking_image,tracking_rectangle);
-    tracker_is_initialized = 1;
-    return 0;
+	if(tracker_is_initialized) {
+		tracker.release();
+		tracker_is_initialized = 0;
+	}
+	if(!tracker_is_initialized) {
+		if(tracker_type=="MEDIANFLOW") {
+			tracker = TrackerMedianFlow::create();
+		}
+		else if(tracker_type=="KCF") {
+			tracker = TrackerKCF::create();
+		} else return -1;
+	}
+	//initialize tracker
+	tracker->init(tracking_image,tracking_rectangle);
+	tracker_is_initialized = 1;
+	return 0;
 }
-
-/**
- * @brief SyncCamera::TrackNext updates the previously initialized tracker with the next image
- * @return -1 on tracking error, -2 if tracker is not initialized, else X-coordinate of the center of the image
- */
 
 int SyncCamera::track_next() {
 	int return_value = 0;
@@ -335,11 +282,6 @@ int SyncCamera::track_next() {
 		return -1;
 	}
 }
-
-/**
- * @brief SyncCamera::FlushFrames Keeps camera busy so we don't read stale frames
- * @param seconds seconds to delay
- */
 
 void SyncCamera::flush_frames(int seconds) {
 	if(!cap.isOpened()) return;
