@@ -5,11 +5,11 @@
 
 
 Controller::Controller(io_context& ctx, Type type, const std::string &dev_path)
-	: logger(new_loggr("ctrl"))
-	, type(type)
-	, sd(ctx)
-	, dev_path(dev_path)
-	, timer_recover(ctx)
+    : logger(new_loggr("ctrl"))
+    , type(type)
+    , sd(ctx)
+    , dev_path(dev_path)
+    , timer_recover(ctx)
 {
 	switch(type)
 	{
@@ -34,6 +34,7 @@ std::error_code Controller::dev_open()
 		auto ec = std::error_code(errno, std::system_category());
 		logger->debug("failed to open {}: {}", dev_path, ec.message());
 
+		// retry again after one second
 		timer_recover.expires_after(std::chrono::seconds(1));
 		timer_recover.async_wait([this](auto ec) { if(!ec) dev_open(); });
 		return ec;
