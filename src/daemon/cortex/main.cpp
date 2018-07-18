@@ -58,7 +58,7 @@ int main(int argc, const char* argv[])
 	conf.common.name = NAME;
 
 	argh::parser opts(argc, argv);
-	parse_common_opts(opts, conf.common, false);
+	conf.common.parse(opts, conf.is_slave);
 
 	conf.is_slave = opts["-S"];
 	opts({"-g", "--gap"}, conf.gap_test) >> conf.gap_test;
