@@ -38,7 +38,7 @@ int main(int argc, const char* argv[])
 	conf.speed = def::MOTOR_SCALE;
 
 	argh::parser opts(argc, argv);
-	parse_common_opts(opts, conf.common);
+	conf.common.parse(opts);
 
 	if(opts[{"-K", "--keyboard"}]) ctrl_type = Controller::Keyboard;
 	opts({"-D", "--device"}, conf.dev_path) >> conf.dev_path;
