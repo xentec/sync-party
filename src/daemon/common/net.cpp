@@ -31,9 +31,9 @@ MQTTClient::MQTTClient(io_context &ctx, const std::string &host, const std::stri
 	});
 }
 
-void MQTTClient::connect(std::function<void (bool, u8)> cb)
+void MQTTClient::connect(std::function<void (bool, u8)> callback)
 {
-	client->set_connack_handler([this, cb] (bool sp, u8 connack_return_code)
+	client->set_connack_handler([this, callback] (bool sp, u8 connack_return_code)
 	{
 		auto rc_str = mqtt::connect_return_code_to_str(connack_return_code);
 		logger->debug("connack: clean: {}, ret code: {}", sp, rc_str);
@@ -46,8 +46,8 @@ void MQTTClient::connect(std::function<void (bool, u8)> cb)
 
 		logger->info("connected");
 
-		if(cb)
-			cb(sp, connack_return_code);
+		if(callback)
+			callback(sp, connack_return_code);
 
 		for(const auto& p: callbacks)
 			client->async_subscribe(p.first, p.second.qos);
@@ -61,16 +61,16 @@ void MQTTClient::connect(std::function<void (bool, u8)> cb)
 	});
 }
 
-void MQTTClient::subscribe(const std::string &topic, u8 qos, SubCB cb)
+void MQTTClient::subscribe(const std::string &topic, u8 qos, SubCB callback)
 {
-	callbacks.emplace(topic, Sub{qos, cb});
+	callbacks.emplace(topic, Sub{qos, callback});
 	if(client->connected())
 		client->async_subscribe(topic, qos);
 }
 
-void MQTTClient::subscribe(const std::string &topic, MQTTClient::SubCB cb)
+void MQTTClient::subscribe(const std::string &topic, MQTTClient::SubCB callback)
 {
-	subscribe(topic, mqtt::qos::exactly_once, cb);
+	subscribe(topic, mqtt::qos::exactly_once, callback);
 }
 
 void MQTTClient::publish(const std::string &topic, const std::string &content)

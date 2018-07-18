@@ -1,13 +1,13 @@
 /* Copyright (c) 2018 LIV-T GmbH */
 #include "timer.hpp"
 
-Timer::Timer(io_context &ioctx)
-	: timer(ioctx)
+Timer::Timer(io_context &ctx)
+	: timer(ctx)
 {}
 
-void Timer::start(steady_timer::duration interval, TimerCB cb)
+void Timer::start(steady_timer::duration interval, TimerCB callback)
 {
-	fn = cb;
+	fn = callback;
 	ival = interval;
 	run({});
 }
