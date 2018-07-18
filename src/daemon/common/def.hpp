@@ -1,14 +1,18 @@
 #pragma once
 
-namespace def {
+/**
+ * @brief Main definitions for daemons
+*/
 
+namespace def
+{
 
 struct Scale
 {
 	int min, max;
 	int range =
-			((min > 0) ? 1 : -1) * min +
-			((max > 0) ? 1 : -1) * max;
+	        ((min > 0) ? 1 : -1) * min +
+	        ((max > 0) ? 1 : -1) * max;
 };
 
 constexpr auto HOST = "sp-master";
