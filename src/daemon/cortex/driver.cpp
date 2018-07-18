@@ -47,13 +47,13 @@ const def::Scale Driver::limit
 };
 
 
-Driver::Driver(boost::asio::io_context& ioctx, const char* dev_path)
-	: logger(new_loggr("driver"))
-	, dev(ioctx, dev_path)
-	, timer(ioctx)
-	, timeout_num(0)
-	, parse_state(SYNC)
-	, speed_ctrl{ steady_timer(ioctx), Speed::STOP }
+Driver::Driver(boost::asio::io_context& ctx, const char* dev_path)
+    : logger(new_loggr("driver"))
+    , dev(ctx, dev_path)
+    , timer(ctx)
+    , timeout_num(0)
+    , parse_state(SYNC)
+    , speed_ctrl{ steady_timer(ctx), Speed::STOP }
 {
 	dev.set_option(serial_port::baud_rate(BAUD /*115200*/));
 	dev.set_option(serial_opts::hang_up(false));
@@ -81,9 +81,9 @@ void Driver::drive(i32 speed)
 		wd_feed({});
 }
 
-void Driver::gap(u8 sensor, std::function<void(std::error_code, u8)> callback)
+void Driver::gap(u8 pin, std::function<void(std::error_code, u8)> callback)
 {
-	send(Type::ULTRA_SONIC, sensor, callback);
+	send(Type::ULTRA_SONIC, pin, callback);
 }
 
 void Driver::analog(u8 pin, std::function<void (std::error_code, u8)> callback)
@@ -96,16 +96,16 @@ void Driver::version(std::function<void (std::error_code, u8)> callback)
 	send(Type::VERSION, 0, callback);
 }
 
-void Driver::wd_feed(std::error_code err)
+void Driver::wd_feed(std::error_code ec)
 {
 	send(Type::MOTOR, speed_ctrl.curr);
 
-	if(err) return;
+	if(ec) return;
 	speed_ctrl.feeder.expires_after(TIMEOUT_TIME);
 	speed_ctrl.feeder.async_wait([this](auto ec){ wd_feed(ec); });
 }
 
-void Driver::send(u8 type, u8 value, std::function<void(std::error_code, u8 cm)> cb)
+void Driver::send(u8 type, u8 value, std::function<void(std::error_code, u8 cm)> callback)
 {
 	if(q.size() > 16 && !(type == Type::MOTOR && value == Speed::STOP))
 	{
@@ -120,7 +120,7 @@ void Driver::send(u8 type, u8 value, std::function<void(std::error_code, u8 cm)>
 	out.flush();
 
 	bool first = q.empty();
-	q.push_back({u8(type), cb});
+	q.push_back({u8(type), callback});
 
 	if(first)
 		send_start();
@@ -195,7 +195,7 @@ void Driver::recv_handle(std::error_code ec, usz len)
 	bool stop = false;
 	do {
 		buffer_iter pkt_begin(buffers_begin(buf_r.data())),
-					pkt_end(buffers_end(buf_r.data()));
+		            pkt_end(buffers_end(buf_r.data()));
 
 		switch(parse_state)
 		{
